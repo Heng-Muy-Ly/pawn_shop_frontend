@@ -35,9 +35,9 @@ function decodeJWT(token: string): DecodedToken | null {
 
 // Auth API for business management system
 export const authApi = {
-  // POST /sign_in - Login with phone number and password
+  // GET /sign_in - Login with phone number and password (as query params)
   signIn: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-    const response = await authApiClient.post('auth/sign_in', {
+    const response = await authApiClient.get('sign_in', {
       params: {
         phone_number: credentials.phone_number,
         password: credentials.password
@@ -48,10 +48,19 @@ export const authApi = {
 
   // POST /refresh_token - Refresh access token
   refreshToken: async (refreshToken: string): Promise<RefreshTokenResponse> => {
-    // Send as query parameter since FastAPI expects refresh_token: str parameter
-    const response = await authApiClient.post('auth/refresh_token', null, {
-      params: { refresh_token: refreshToken }
+    const response = await authApiClient.post('refresh_token', {
+      refresh_token: refreshToken
     });
+    return response.data;
+  },
+
+  // POST /create_user - Create new user
+  createUser: async (userData: {
+    phone_number: string;
+    password: string;
+    role?: string;
+  }): Promise<AuthResponse> => {
+    const response = await authApiClient.post('create_user', userData);
     return response.data;
   },
 

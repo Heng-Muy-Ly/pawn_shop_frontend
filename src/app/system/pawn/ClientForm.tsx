@@ -13,6 +13,7 @@ import {
 import { colors } from '@/lib/colors';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { getMessage, getClientFoundMessage } from '@/lib/messages';
 
 interface Client {
   cus_id: number;
@@ -123,7 +124,7 @@ export default function ClientForm({
 
   const handleSearchClient = async () => {
     if (!formData.phone_number?.trim()) {
-      onNotification('error', 'សូមបញ្ចូលលេខទូរសព្ទដើម្បីស្វែងរក');
+      onNotification('error', getMessage('error', 'phoneRequiredForSearch'));
       return;
     }
 
@@ -141,7 +142,7 @@ export default function ClientForm({
     try {
       // Send only digits to API
       const cleanPhone = formData.phone_number.replace(/\D/g, '');
-      const response = await clientsApi.search(cleanPhone);
+      const response = await clientsApi.getByPhone(cleanPhone);
       
       if (response.code === 200 && response.result && response.result.length > 0) {
         const client = response.result[0];
@@ -154,9 +155,9 @@ export default function ClientForm({
           phone_number: formatPhoneNumber(client.phone_number) || formData.phone_number
         });
         
-        onNotification('success', `រកឃើញអតិថិជន: ${client.cus_name}`);
+        onNotification('success', getClientFoundMessage(client.cus_name));
       } else {
-        onNotification('error', 'មិនរកឃើញអតិថិជនដែលមានលេខទូរសព្ទនេះទេ');
+        onNotification('error', getMessage('error', 'clientNotFound'));
         onClientFound(null);
         // Keep the phone number but clear other fields
         onFormDataChange({
@@ -172,13 +173,13 @@ export default function ClientForm({
       const apiError = error as { response?: { status?: number; data?: { message?: string } } };
       
       if (apiError.response?.status === 404) {
-        onNotification('error', 'មិនរកឃើញអតិថិជនដែលមានលេខទូរសព្ទនេះទេ');
+        onNotification('error', getMessage('error', 'clientNotFound'));
       } else if (apiError.response?.status === 400) {
-        onNotification('error', 'លេខទូរសព្ទមិនត្រឹមត្រូវ');
+        onNotification('error', getMessage('error', 'invalidPhone'));
       } else if (apiError.response?.status === 500) {
-        onNotification('error', 'មានបញ្ហាពីម៉ាស៊ីនបម្រើ សូមព្យាយាមម្តងទៀត');
+        onNotification('error', getMessage('error', 'serverError'));
       } else {
-        const errorMessage = apiError.response?.data?.message || 'មានបញ្ហាក្នុងការស្វែងរកអតិថិជន';
+        const errorMessage = apiError.response?.data?.message || getMessage('error', 'clientSearchError');
         onNotification('error', errorMessage);
       }
       
@@ -199,13 +200,13 @@ export default function ClientForm({
     
     // Validate required fields
     if (!formData.cus_name?.trim()) {
-      onNotification('error', 'សូមបញ្ចូលឈ្មោះអតិថិជន');
+      onNotification('error', getMessage('error', 'customerNameRequired'));
       nameInputRef.current?.focus();
       return;
     }
 
     if (!formData.phone_number?.trim()) {
-      onNotification('error', 'សូមបញ្ចូលលេខទូរសព្ទ');
+      onNotification('error', getMessage('error', 'phoneNumberRequired'));
       phoneInputRef.current?.focus();
       return;
     }
@@ -232,16 +233,16 @@ export default function ClientForm({
       const response = await clientsApi.create(clientData);
       
       if (response.code === 200) {
-        onNotification('success', 'អតិថិជនត្រូវបានបង្កើតដោយជោគជ័យ');
+        onNotification('success', getMessage('success', 'clientCreated'));
         resetForm();
         onClientCreated();
       } else {
-        onNotification('error', response.message || 'មានបញ្ហាក្នុងការរក្សាទុកអតិថិជន');
+        onNotification('error', response.message || getMessage('error', 'clientSaveError'));
       }
     } catch (error: unknown) {
       console.error('Error saving client:', error);
       const apiError = error as { response?: { data?: { message?: string } } };
-      const errorMessage = apiError.response?.data?.message || 'មានបញ្ហាក្នុងការរក្សាទុកអតិថិជន';
+      const errorMessage = apiError.response?.data?.message || getMessage('error', 'clientSaveError');
       onNotification('error', errorMessage);
     }
   };

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ordersApi } from '@/lib/api';
 import { colors } from '@/lib/colors';
+import { getMessage } from '@/lib/messages';
 import { printOrder } from '@/lib/printOrder';
 import { 
   Search, 
@@ -125,7 +126,7 @@ export default function OrderPage() {
       console.log('Loading clients with page:', page);
       
       // Call your updated API method with pagination and limit
-      const response = await ordersApi.getClientOrders({ 
+      const response = await ordersApi.getAllClientOrders({ 
         page,
         limit: 10  // Add the limit parameter that your backend expects
       });
@@ -248,8 +249,8 @@ export default function OrderPage() {
 
         console.log('Searching with params:', searchParams);
 
-        // Use the same getClientOrders method for search
-        const response = await ordersApi.getClientOrders(searchParams);
+        // Use the same getAllClientOrders method for search
+        const response = await ordersApi.getAllClientOrders(searchParams);
         
         if (!isMountedRef.current) return;
 
@@ -263,7 +264,7 @@ export default function OrderPage() {
           setCurrentPage(page);
           
           if (results.length === 0 && page === 1) {
-            showNotification('error', 'មិនរកឃើញអតិថិជនដែលត្រូវគ្នាទេ');
+            showNotification('error', getMessage('error', 'noResultsFound'));
           }
         } else {
           setClients([]);
@@ -805,7 +806,7 @@ export default function OrderPage() {
                       <User className="h-8 w-8 text-gray-400" />
                     </div>
                     <p className="text-gray-500 text-lg">
-                      {isSearchMode ? 'មិនរកឃើញអតិថិជនទេ' : 'មិនមានអតិថិជនទេ'}
+                      {isSearchMode ? getMessage('error', 'noResultsFound') : getMessage('info', 'noData')}
                     </p>
                     {isSearchMode && (
                       <div className="mt-4 space-y-2">

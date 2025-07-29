@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { Eye, EyeOff, Phone, Lock } from 'lucide-react';
 import { config } from '@/lib/config';
+import { getMessage } from '@/lib/messages';
 
 export default function LoginPage() {
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -30,7 +31,7 @@ export default function LoginPage() {
     const pass = password.trim();
 
     if (!phone || !pass) {
-      setError('Phone number and password are required.');
+      setError(getMessage('error', 'requiredField'));
       setIsLoading(false);
       return;
     }

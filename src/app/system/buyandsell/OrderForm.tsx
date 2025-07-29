@@ -14,6 +14,7 @@ import { colors } from '@/lib/colors';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import ProductDropdown from '@/components/ui/ProductDropdown';
+import { getMessage } from '@/lib/messages';
 
 interface Client {
   cus_id?: number;
@@ -221,12 +222,12 @@ export default function OrderForm({
 
     // Validation
     if (!customerPhone) {
-      onNotification('error', 'សូមបញ្ចូលលេខទូរសព្ទអតិថិជន');
+      onNotification('error', getMessage('error', 'customerPhoneRequired'));
       return;
     }
 
     if (!orderData.order_product_detail || orderData.order_product_detail.length === 0) {
-      onNotification('error', 'សូមបន្ថែមផលិតផលយ៉ាងហោចណាស់មួយ');
+      onNotification('error', getMessage('error', 'atLeastOneProduct'));
       return;
     }
 
@@ -236,7 +237,7 @@ export default function OrderForm({
     );
 
     if (invalidProducts.length > 0) {
-      onNotification('error', 'សូមបញ្ចូលឈ្មោះផលិតផលសម្រាប់គ្រប់ទំនិញ');
+      onNotification('error', getMessage('error', 'productRequired'));
       return;
     }
 
@@ -266,16 +267,16 @@ export default function OrderForm({
       const response = await ordersApi.create(orderPayload);
       
       if (response.code === 200) {
-        onNotification('success', 'ការបញ្ជាទិញត្រូវបានបង្កើតដោយជោគជ័យ');
+        onNotification('success', getMessage('success', 'orderCreated'));
         resetOrderForm();
         onOrderCreated();
       } else {
-        onNotification('error', response.message || 'មានបញ្ហាក្នុងការបង្កើតការបញ្ជាទិញ');
+        onNotification('error', response.message || getMessage('error', 'orderSaveError'));
       }
     } catch (error: unknown) {
       console.error('Error creating order:', error);
       const apiError = error as { response?: { data?: { message?: string } } };
-      const errorMessage = apiError.response?.data?.message || 'មានបញ្ហាក្នុងការបង្កើតការបញ្ជាទិញ';
+      const errorMessage = apiError.response?.data?.message || getMessage('error', 'orderSaveError');
       onNotification('error', errorMessage);
     } finally {
       setSubmittingOrder(false);

@@ -192,92 +192,65 @@ export interface PawnCreateData {
   }[];
 }
 
-// Products API - Based on your exact endpoints "/api/product"
+// Products API - Based on your exact endpoints "/api/v1/product"
 export const productsApi = {
   getAll: async (page = 1, limit = 10): Promise<ApiResponse<{products: Product[], pagination: any}>> => {
-    const response = await apiClient.get(`/products/api/product?page=${page}&limit=${limit}`);
+    const response = await apiClient.get(`product?page=${page}&limit=${limit}`);
     return response.data;
   },
   
   create: async (product: ProductCreateData): Promise<ApiResponse<Product>> => {
-    const response = await apiClient.post('/products/api/product', product);
+    const response = await apiClient.post('product', product);
     return response.data;
   },
   
   update: async (updateData: ProductUpdateData): Promise<ApiResponse<Product>> => {
-    const response = await apiClient.put('/products/api/product', updateData);
+    const response = await apiClient.put('product', updateData);
     return response.data;
   },
   
   delete: async (productId: number): Promise<ApiResponse> => {
-    const response = await apiClient.delete(`/products/api/product/${productId}`);
+    const response = await apiClient.delete(`product/${productId}`);
     return response.data;
   },
   
-  getClientOrderSearch: async (params: ClientSearchParams): Promise<ApiResponse> => {
-    const searchParams = new URLSearchParams();
-    if (params.cus_id) searchParams.append('cus_id', params.cus_id.toString());
-    if (params.cus_name) searchParams.append('cus_name', params.cus_name);
-    if (params.phone_number) searchParams.append('phone_number', params.phone_number);
-
-    const response = await apiClient.get(`/orders/api/order/search?${searchParams.toString()}`);
+  search: async (searchTerm: string): Promise<ApiResponse<Product[]>> => {
+    const response = await apiClient.get(`product/search?search=${searchTerm}`);
     return response.data;
   }
-  
-  // getNextId: async (): Promise<ApiResponse> => {
-  //   const response = await apiClient.get('/api/product/next-id');
-  //   return response.data;
-  // }
 };
 
-// Clients API - Based on your Swagger "/api/client"
+// Clients API - Based on your Swagger "/api/v1/client"
 export const clientsApi = {
-  getAll: async (): Promise<ApiResponse<Client[]>> => {
-    const response = await apiClient.get('/client/api/client');
+  getAll: async (page = 1, limit = 10): Promise<ApiResponse<{clients: Client[], pagination: any}>> => {
+    const response = await apiClient.get(`client?page=${page}&limit=${limit}`);
     return response.data;
   },
   
   create: async (client: ClientCreateData): Promise<ApiResponse<Client>> => {
-    const response = await apiClient.post('/client/api/client', client);
+    const response = await apiClient.post('client', client);
     return response.data;
   },
 
-  search: async (searchTerm: string): Promise<ApiResponse<Client[]>> => {
-    const response = await apiClient.get(`/client/api/client/${searchTerm}`);
+  getByPhone: async (phoneNumber: string): Promise<ApiResponse<Client>> => {
+    const response = await apiClient.get(`client/${phoneNumber}`);
     return response.data;
   }
 };
 
-// Orders API - Based on your Swagger "/api/order"
+// Orders API - Based on your Swagger "/api/v1/order"
 export const ordersApi = {
-
-  // These Point was changed
-  // getOrderAccount: async (phone_number: string): Promise<ApiResponse> => {
-  //   const response = await apiClient.get(`/order/client_phone?phone_number=${phone_number}`);
-  //   return response.data;
-  // },
-
-  // getClientOrder: async (params: { phone_number?: string; cus_name?: string; cus_id?: number }): Promise<ApiResponse> => {
-  //   const searchParams = new URLSearchParams();
-  //   if (params.phone_number) searchParams.append('phone_number', params.phone_number);
-  //   if (params.cus_name) searchParams.append('cus_name', params.cus_name);
-  //   if (params.cus_id) searchParams.append('cus_id', params.cus_id.toString());
-    
-  //   const response = await apiClient.get(`/order?${searchParams}`);
-  //   return response.data;
-  // },
-
-  getorder: async (): Promise<ApiResponse<Order[]>> => {
-    const response = await apiClient.get('/orders/api/order');
+  getAll: async (): Promise<ApiResponse<Order[]>> => {
+    const response = await apiClient.get('order');
     return response.data;
   },
 
   create: async (order: OrderCreateData): Promise<ApiResponse<Order>> => {
-    const response = await apiClient.post('/orders/api/order', order);
+    const response = await apiClient.post('order', order);
     return response.data;
   },
   
-  getClientOrders: async (params?: { page?: number; search_id?: number; search_name?: string; search_phone?: string; search_address?: string }): Promise<ApiResponse<Order[]>> => {
+  getAllClientOrders: async (params?: { page?: number; search_id?: number; search_name?: string; search_phone?: string; search_address?: string }): Promise<ApiResponse<Order[]>> => {
     const queryParams = new URLSearchParams();
     
     if (params?.page) {
@@ -297,91 +270,162 @@ export const ordersApi = {
     }
     
     const url = queryParams.toString() 
-      ? `/orders/api/order/all_client?${queryParams.toString()}`
-      : '/orders/api/order/all_client';
+      ? `order/all_client?${queryParams.toString()}`
+      : 'order/all_client';
 
     const response = await apiClient.get(url);
     return response.data;
   },
 
   getClientOrderById: async (clientId: string): Promise<ApiResponse<Order[]>> => {
-    const response = await apiClient.get(`orders/api/order/client/${clientId}`);
+    const response = await apiClient.get(`order/client/${clientId}`);
     return response.data;
   },
 
-  getClientOrderSearch: async (params: ClientSearchParams): Promise<ApiResponse<Order[]>> => {
+  search: async (params: ClientSearchParams): Promise<ApiResponse<Order[]>> => {
     const searchParams = new URLSearchParams();
     if (params.cus_id) searchParams.append('cus_id', params.cus_id.toString());
     if (params.cus_name) searchParams.append('cus_name', params.cus_name);
     if (params.phone_number) searchParams.append('phone_number', params.phone_number);
 
-    const response = await apiClient.get(`/api/order/search?${searchParams.toString()}`);
+    const response = await apiClient.get(`order/search?${searchParams.toString()}`);
     return response.data;
   },
 
   getNextOrderId: async (): Promise<ApiResponse<{ next_order_id: number }>> => {
-    const response = await apiClient.get('/api/order/next-id');
+    const response = await apiClient.get('order/next-id');
     return response.data;
   },
 
   getLastOrders: async (): Promise<ApiResponse<Order[]>> => {
-    const response = await apiClient.get('/api/order/last');
-    return response.data;
+    console.log('🔍 Calling getLastOrders endpoint: order (to get all orders)');
+    try {
+      const response = await apiClient.get('order');
+      console.log('🔍 getLastOrders response:', response);
+      console.log('🔍 getLastOrders response.data:', response.data);
+      
+      // If we get orders, return only the last 3
+      if (response.data.code === 200 && response.data.result && Array.isArray(response.data.result)) {
+        const allOrders = response.data.result;
+        const lastOrders = allOrders.slice(-3); // Get last 3 orders
+        console.log('🔍 Returning last 3 orders:', lastOrders);
+        
+        return {
+          ...response.data,
+          result: lastOrders
+        };
+      }
+      
+      return response.data;
+    } catch (error) {
+      console.error('🔍 Error in getLastOrders:', error);
+      throw error;
+    }
   },
 
   printOrder: async (orderId: number): Promise<ApiResponse> => {
-    const response = await apiClient.get(`/api/order/print?order_id=${orderId}`);
+    const response = await apiClient.get(`order/print?order_id=${orderId}`);
     return response.data;
   },
 };
 
-// Pawns API - Based on your Swagger "/api/pawn"
+// Pawns API - Based on your Swagger "/api/v1/pawn"
 export const pawnsApi = {
-  getpawn: async (): Promise<ApiResponse<Pawn[]>> => {
-    const response = await apiClient.get('/api/pawn');
+  getById: async (pawnId: number): Promise<ApiResponse<Pawn>> => {
+    const response = await apiClient.get(`pawn/${pawnId}`);
     return response.data;
   },
   
   create: async (pawn: PawnCreateData): Promise<ApiResponse<Pawn>> => {
-    const response = await apiClient.post('/api/pawn', pawn);
+    const response = await apiClient.post('pawn', pawn);
     return response.data;
   },
 
-  getClientPawns: async (): Promise<ApiResponse<Pawn[]>> => {
-    const response = await apiClient.get('/api/pawn/all_client');
+  getAllClientPawns: async (params?: { page?: number; search_id?: number; search_name?: string; search_phone?: string; search_address?: string }): Promise<ApiResponse<Pawn[]>> => {
+    const queryParams = new URLSearchParams();
+    
+    if (params?.page) {
+      queryParams.append('page', params.page.toString());
+    }
+    if (params?.search_id) {
+      queryParams.append('search_id', params.search_id.toString());
+    }
+    if (params?.search_name) {
+      queryParams.append('search_name', params.search_name);
+    }
+    if (params?.search_phone) {
+      queryParams.append('search_phone', params.search_phone);
+    }
+    if (params?.search_address) {
+      queryParams.append('search_address', params.search_address);
+    }
+    
+    const url = queryParams.toString() 
+      ? `pawn/all_client?${queryParams.toString()}`
+      : 'pawn/all_client';
+
+    const response = await apiClient.get(url);
     return response.data;
   },
 
   getClientPawnById: async (clientId: string): Promise<ApiResponse<Pawn[]>> => {
-    const response = await apiClient.get(`/api/pawn/client/${clientId}`);
+    const response = await apiClient.get(`pawn/client/${clientId}`);
     return response.data;
   },
   
-  getClientPawnSearch: async (params: ClientSearchParams): Promise<ApiResponse<Pawn[]>> => {
+  search: async (params: ClientSearchParams): Promise<ApiResponse<Pawn[]>> => {
     const searchParams = new URLSearchParams();
     if (params.cus_id) searchParams.append('cus_id', params.cus_id.toString());
     if (params.cus_name) searchParams.append('cus_name', params.cus_name);
     if (params.phone_number) searchParams.append('phone_number', params.phone_number);
 
-    const response = await apiClient.get(`/api/pawn/search?${searchParams.toString()}`);
+    const response = await apiClient.get(`pawn/search?${searchParams.toString()}`);
     return response.data;
   },
 
   getNextPawnId: async (): Promise<ApiResponse<{ next_id: number }>> => {
-    const response = await apiClient.get('/api/pawn/next-id');
+    const response = await apiClient.get('pawn/next-id');
     return response.data;
   },
 
   getLastPawns: async (): Promise<ApiResponse<Pawn[]>> => {
-    const response = await apiClient.get('/api/pawn/last');
+    const response = await apiClient.get('pawn/last');
     return response.data;
   },
 
-  // NEW: Print pawn function
   printPawn: async (pawnId: number): Promise<ApiResponse> => {
-    const response = await apiClient.get(`/api/pawn/print?pawn_id=${pawnId}`);
+    const response = await apiClient.get(`pawn/print?pawn_id=${pawnId}`);
     return response.data;
   },
+};
+
+// Test function to debug API issues
+export const testApiConnection = async () => {
+  console.log('🧪 Testing API connection...');
+  
+  try {
+    // Test basic connectivity
+    const response = await apiClient.get('order');
+    console.log('✅ API connection successful');
+    console.log('📊 Response:', response.data);
+    
+    if (response.data.code === 200) {
+      console.log('✅ API returned success code');
+      if (response.data.result) {
+        console.log(`📦 Found ${Array.isArray(response.data.result) ? response.data.result.length : 'non-array'} result(s)`);
+      } else {
+        console.log('❌ No result in response');
+      }
+    } else {
+      console.log('❌ API returned error code:', response.data.code);
+      console.log('📝 Error message:', response.data.message);
+    }
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ API connection failed:', error);
+    throw error;
+  }
 };
 
 export default apiClient;

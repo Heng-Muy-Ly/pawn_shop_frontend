@@ -183,7 +183,7 @@ export default function PawnPage() {
     try {
       const response = await clientsApi.getAll();
       if (response.code === 200 && response.result) {
-        setClients(response.result as any);
+        setClients(response.result.clients || response.result);
       } else {
         showNotification('error', 'មិនអាចទាញយកបញ្ជីអតិថិជនបានទេ');
       }

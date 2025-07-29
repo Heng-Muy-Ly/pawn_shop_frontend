@@ -2,8 +2,9 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { clientsApi, productsApi, ordersApi, Client, Product } from '@/lib/api';
+import { clientsApi, productsApi, ordersApi, Client, Product, testApiConnection } from '@/lib/api';
 import { colors } from '@/lib/colors';
+import { getMessage, getDataLoadedMessage } from '@/lib/messages';
 
 // Import local components from the same folder
 import ClientForm from './ClientForm';
@@ -103,13 +104,13 @@ export default function BuyAndSellPage() {
     try {
       const response = await clientsApi.getAll();
       if (response.code === 200 && response.result) {
-        setClients(response.result);
+        setClients(response.result.clients || response.result);
       } else {
-        showNotification('error', 'មិនអាចទាញយកបញ្ជីអតិថិជនបានទេ');
+        showNotification('error', getMessage('error', 'clientLoadError'));
       }
     } catch (error: unknown) {
       console.error('Error loading clients:', error);
-      showNotification('error', 'មានបញ្ហាក្នុងការទាញយកទិន្នន័យ');
+      showNotification('error', getMessage('error', 'general'));
     }
   }, []);
 
@@ -117,19 +118,29 @@ export default function BuyAndSellPage() {
   const loadLastOrders = useCallback(async () => {
     setLoadingLastOrders(true);
     try {
+      console.log('🔄 Loading last orders...');
       const response = await ordersApi.getLastOrders();
+      console.log('📦 Full response from getLastOrders:', response);
       
       if (response.code === 200 && response.result) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setLastOrders(response.result as any);
         console.log('✅ Last orders loaded successfully:', response.result);
         if (response.result.length > 0) {
+          console.log(`✅ Found ${response.result.length} orders`);
           // showNotification('success', `ទាញយកការបញ្ជាទិញចុងក្រោយ ${response.result.length} ចំនួនបានជោគជ័យ`);
+        } else {
+          console.log('ℹ️ No orders found in result array');
         }
       } else {
-        console.log('No orders found:', response);
+        console.log('❌ No orders found - response details:', {
+          code: response.code,
+          status: response.status,
+          message: response.message,
+          result: response.result
+        });
         setLastOrders([]);
-        showNotification('error', response.message || 'មិនអាចទាញយកការបញ្ជាទិញចុងក្រោយបានទេ');
+        showNotification('error', response.message || getMessage('error', 'orderLoadError'));
       }
     } catch (error: unknown) {
       console.error('Error loading last orders:', error);
@@ -138,13 +149,13 @@ export default function BuyAndSellPage() {
       
       // Check if it's a JSON parsing error (HTML response)
       if (apiError.message?.includes('Unexpected token') || apiError.message?.includes('JSON')) {
-        showNotification('error', 'Backend មិនត្រឹមត្រូវ - សូមពិនិត្យ API endpoint');
+        showNotification('error', getMessage('error', 'backendError'));
       } else if (apiError.response?.status === 404) {
-        showNotification('error', 'API endpoint មិនត្រូវបានរកឃើញ');
+        showNotification('error', getMessage('error', 'apiEndpointNotFound'));
       } else if (apiError.response?.status === 401) {
-        showNotification('error', 'សូមចូលប្រើប្រាស់ម្តងទៀត');
+        showNotification('error', getMessage('error', 'unauthorized'));
       } else {
-        showNotification('error', 'មានបញ្ហាក្នុងការទាញយកទិន្នន័យ');
+        showNotification('error', getMessage('error', 'general'));
       }
       
       setLastOrders([]);
@@ -154,9 +165,15 @@ export default function BuyAndSellPage() {
   }, []);
 
   useEffect(() => {
-    loadClients();
-    loadProducts();
-    loadLastOrders(); // Load last orders on component mount
+    // Test API connection first
+    testApiConnection().then(() => {
+      loadClients();
+      loadProducts();
+      loadLastOrders(); // Load last orders on component mount
+    }).catch(error => {
+      console.error('❌ API test failed:', error);
+      showNotification('error', getMessage('error', 'networkError'));
+    });
   }, [loadClients, loadProducts, loadLastOrders]);
 
   const handleClientCreated = () => {

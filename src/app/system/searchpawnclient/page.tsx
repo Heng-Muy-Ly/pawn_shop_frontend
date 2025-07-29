@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { pawnsApi } from '@/lib/api';
 import { colors } from '@/lib/colors';
+import { getMessage } from '@/lib/messages';
 import { printPawn } from '@/lib/printPawn';
 import { 
   Search, 
@@ -123,7 +124,7 @@ export default function PawnPage() {
 
       console.log('Loading clients with page:', page);
       
-      const response = await pawnsApi.getClientPawns({ 
+      const response = await pawnsApi.getAllClientPawns({ 
         page,
         limit: 10
       });
@@ -245,8 +246,8 @@ export default function PawnPage() {
 
         console.log('Searching with params:', searchParams);
 
-        // Use the same getClientPawns method for search
-        const response = await pawnsApi.getClientPawns(searchParams);
+        // Use the same getAllClientPawns method for search
+        const response = await pawnsApi.getAllClientPawns(searchParams);
         
         if (!isMountedRef.current) return;
 
@@ -260,7 +261,7 @@ export default function PawnPage() {
           setCurrentPage(page);
           
           if (results.length === 0 && page === 1) {
-            showNotification('error', 'មិនរកឃើញអតិថិជនដែលត្រូវគ្នាទេ');
+            showNotification('error', getMessage('error', 'noResultsFound'));
           }
         } else {
           setClients([]);
@@ -796,7 +797,7 @@ export default function PawnPage() {
                       <User className="h-8 w-8 text-gray-400" />
                     </div>
                     <p className="text-gray-500 text-lg">
-                      {isSearchMode ? 'មិនរកឃើញអតិថិជនទេ' : 'មិនមានអតិថិជនទេ'}
+                      {isSearchMode ? getMessage('error', 'noResultsFound') : getMessage('info', 'noData')}
                     </p>
                     {isSearchMode && (
                       <div className="mt-4 space-y-2">

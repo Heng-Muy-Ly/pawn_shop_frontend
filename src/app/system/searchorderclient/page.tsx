@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ordersApi } from '@/lib/api';
+import { ordersApi, formatPhoneNumberForDisplay } from '@/lib/api';
 import { colors } from '@/lib/colors';
 import { getMessage } from '@/lib/messages';
 import { printOrder } from '@/lib/printOrder';
@@ -134,22 +134,22 @@ export default function OrderPage() {
       });
       
       console.log('Full API Response:', response);
-      console.log('🔍 Response code:', response.code);
-      console.log('🔍 Response result:', response.result);
-      console.log('🔍 Response result type:', typeof response.result);
-      console.log('🔍 Is result array?', Array.isArray(response.result));
+      console.log('Response code:', response.code);
+      console.log('Response result:', response.result);
+      console.log('Response result type:', typeof response.result);
+      console.log('Is result array?', Array.isArray(response.result));
       console.log('Pagination from response:', response.pagination);
       
       if (response.code === 200 && response.result && isMountedRef.current) {
-        console.log('🔍 Setting clients with:', response.result);
+        console.log('Setting clients with:', response.result);
         setClients(response.result);
         
         // Set pagination data from API response
         if (response.pagination) {
           setPagination(response.pagination);
-          console.log('✅ Pagination successfully set:', response.pagination);
+          console.log(' Pagination successfully set:', response.pagination);
         } else {
-          console.log('❌ No pagination in response, creating fallback');
+          console.log(' No pagination in response, creating fallback');
           // Fallback pagination if API doesn't return it
           const fallbackPagination = {
             current_page: page,
@@ -208,35 +208,21 @@ export default function OrderPage() {
 
   // Debug effect to log clients state changes
   useEffect(() => {
-    console.log('🔍 Clients state changed:', clients);
-    console.log('🔍 Clients length:', clients.length);
-    console.log('🔍 Loading state:', loading);
-    console.log('🔍 Search mode:', isSearchMode);
+    console.log('Clients state changed:', clients);
+    console.log('Clients length:', clients.length);
+    console.log('Loading state:', loading);
+    console.log('Search mode:', isSearchMode);
   }, [clients, loading, isSearchMode]);
 
   // Debounced search function with pagination
-  // Phone number formatting utility for search and display
-  const formatPhoneNumber = (phone: string): string => {
-    if (!phone) return '';
-    
-    // Remove all non-digit characters
-    const digits = phone.replace(/\D/g, '');
-    
-    // Format as XXX XXX XXX (3-3-3 format) - exactly like backend
-    if (digits.length === 9) {
-      return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
-    }
-    
-    // Return original if not 9 digits
-    return phone;
-  };
+  // Use the centralized formatPhoneNumberForDisplay function
 
   // URL encode phone number for API calls
   const encodePhoneForAPI = (phone: string): string => {
     if (!phone) return '';
     
     // Format the phone number first
-    const formattedPhone = formatPhoneNumber(phone);
+    const formattedPhone = formatPhoneNumberForDisplay(phone);
     
     // URL encode the formatted phone (spaces become %20)
     return encodeURIComponent(formattedPhone);
@@ -304,11 +290,11 @@ export default function OrderPage() {
         
         if (filters.search_phone.trim()) {
           // Format phone number to match backend format
-          const formattedPhone = formatPhoneNumber(filters.search_phone.trim());
+          const formattedPhone = formatPhoneNumberForDisplay(filters.search_phone.trim());
           const encodedPhone = encodePhoneForAPI(filters.search_phone.trim());
-          console.log('🔍 Original phone:', filters.search_phone.trim());
-          console.log('🔍 Formatted phone:', formattedPhone);
-          console.log('🔍 URL encoded phone:', encodedPhone);
+          console.log('Original phone:', filters.search_phone.trim());
+          console.log('Formatted phone:', formattedPhone);
+          console.log('URL encoded phone:', encodedPhone);
           searchParams.search_phone = encodedPhone;
         }
 
@@ -318,12 +304,12 @@ export default function OrderPage() {
 
         console.log('Searching with params:', searchParams);
 
-        console.log('🔍 Checking phone-only search conditions:');
-        console.log('🔍 search_phone.trim():', filters.search_phone.trim());
-        console.log('🔍 search_id.trim():', filters.search_id.trim());
-        console.log('🔍 search_name.trim():', filters.search_name.trim());
-        console.log('🔍 search_address.trim():', filters.search_address.trim());
-        console.log('🔍 All conditions met:', 
+        console.log('Checking phone-only search conditions:');
+        console.log('search_phone.trim():', filters.search_phone.trim());
+        console.log('search_id.trim():', filters.search_id.trim());
+        console.log('search_name.trim():', filters.search_name.trim());
+        console.log('search_address.trim():', filters.search_address.trim());
+        console.log('All conditions met:', 
           filters.search_phone.trim() && 
           !filters.search_id.trim() && 
           !filters.search_name.trim() && 
@@ -336,15 +322,15 @@ export default function OrderPage() {
             !filters.search_name.trim() && 
             !filters.search_address.trim()) {
           
-          console.log('🔍 Phone-only search detected, using direct client lookup');
-          console.log('🔍 Search filters:', filters);
-          console.log('🔍 Phone number:', filters.search_phone.trim());
-          console.log('🔍 Phone number length:', filters.search_phone.trim().length);
-          console.log('🔍 Phone number digits only:', filters.search_phone.trim().replace(/\D/g, ''));
-          console.log('🔍 Phone number digits length:', filters.search_phone.trim().replace(/\D/g, '').length);
+          console.log('Phone-only search detected, using direct client lookup');
+          console.log('Search filters:', filters);
+          console.log('Phone number:', filters.search_phone.trim());
+          console.log('Phone number length:', filters.search_phone.trim().length);
+          console.log('Phone number digits only:', filters.search_phone.trim().replace(/\D/g, ''));
+          console.log('Phone number digits length:', filters.search_phone.trim().replace(/\D/g, '').length);
           const formattedPhone = formatPhoneNumber(filters.search_phone.trim());
-          console.log('🔍 Passing formatted phone to API:', formattedPhone);
-          console.log('🔍 Formatted phone length:', formattedPhone.length);
+          console.log('Passing formatted phone to API:', formattedPhone);
+          console.log('Formatted phone length:', formattedPhone.length);
           const response = await clientsApi.getByPhone(formattedPhone);
           
           if (response.code === 200 && response.result) {
@@ -370,21 +356,21 @@ export default function OrderPage() {
         }
 
         // Use the same getAllClientOrders method for other searches
-        console.log('🔍 Using getAllClientOrders method for search');
+        console.log('Using getAllClientOrders method for search');
         const response = await ordersApi.getAllClientOrders(searchParams);
         
         if (!isMountedRef.current) return;
 
         console.log('Search response:', response);
-        console.log('🔍 Response code:', response.code);
-        console.log('🔍 Response result:', response.result);
-        console.log('🔍 Response result type:', typeof response.result);
-        console.log('🔍 Is result array?', Array.isArray(response.result));
+        console.log('Response code:', response.code);
+        console.log('Response result:', response.result);
+        console.log('Response result type:', typeof response.result);
+        console.log('Is result array?', Array.isArray(response.result));
 
         if (response.code === 200) {
           const results = Array.isArray(response.result) ? response.result : [];
-          console.log('🔍 Processed results:', results);
-          console.log('🔍 Results length:', results.length);
+          console.log('Processed results:', results);
+          console.log('Results length:', results.length);
           
           setClients(results);
           setPagination(response.pagination);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { pawnsApi } from '@/lib/api';
+import { pawnsApi, formatPhoneNumberForDisplay } from '@/lib/api';
 import { colors } from '@/lib/colors';
 import { getMessage } from '@/lib/messages';
 import { printPawn } from '@/lib/printPawn';
@@ -140,9 +140,9 @@ export default function PawnPage() {
         // Set pagination data from API response
         if (response.pagination) {
           setPagination(response.pagination);
-          console.log('✅ Pagination successfully set:', response.pagination);
+          console.log(' Pagination successfully set:', response.pagination);
         } else {
-          console.log('❌ No pagination in response, creating fallback');
+          console.log(' No pagination in response, creating fallback');
           const fallbackPagination = {
             current_page: page,
             page_size: 10,
@@ -198,28 +198,14 @@ export default function PawnPage() {
     }
   }, [notification]);
 
-  // Phone number formatting utility for search and display
-  const formatPhoneNumber = (phone: string): string => {
-    if (!phone) return '';
-    
-    // Remove all non-digit characters
-    const digits = phone.replace(/\D/g, '');
-    
-    // Format as XXX XXX XXX (3-3-3 format) - exactly like backend
-    if (digits.length === 9) {
-      return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
-    }
-    
-    // Return original if not 9 digits
-    return phone;
-  };
+  // Use the centralized formatPhoneNumberForDisplay function
 
   // URL encode phone number for API calls
   const encodePhoneForAPI = (phone: string): string => {
     if (!phone) return '';
     
     // Format the phone number first
-    const formattedPhone = formatPhoneNumber(phone);
+    const formattedPhone = formatPhoneNumberForDisplay(phone);
     
     // URL encode the formatted phone (spaces become %20)
     return encodeURIComponent(formattedPhone);
@@ -288,11 +274,11 @@ export default function PawnPage() {
         
         if (filters.phone_number.trim()) {
           // Format phone number to match backend format
-          const formattedPhone = formatPhoneNumber(filters.phone_number.trim());
+          const formattedPhone = formatPhoneNumberForDisplay(filters.phone_number.trim());
           const encodedPhone = encodePhoneForAPI(filters.phone_number.trim());
-          console.log('🔍 Original phone:', filters.phone_number.trim());
-          console.log('🔍 Formatted phone:', formattedPhone);
-          console.log('🔍 URL encoded phone:', encodedPhone);
+          console.log('Original phone:', filters.phone_number.trim());
+          console.log('Formatted phone:', formattedPhone);
+          console.log('URL encoded phone:', encodedPhone);
           searchParams.search_phone = encodedPhone;
         }
 
@@ -308,9 +294,9 @@ export default function PawnPage() {
             !filters.cus_name.trim() && 
             !filters.address.trim()) {
           
-          console.log('🔍 Phone-only search detected, using direct client lookup');
+          console.log('Phone-only search detected, using direct client lookup');
           const formattedPhone = formatPhoneNumber(filters.phone_number.trim());
-          console.log('🔍 Passing formatted phone to API:', formattedPhone);
+          console.log('Passing formatted phone to API:', formattedPhone);
           const response = await clientsApi.getByPhone(formattedPhone);
           
           if (response.code === 200 && response.result) {

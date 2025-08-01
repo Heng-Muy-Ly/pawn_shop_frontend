@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { clientsApi } from '@/lib/api';
+import { clientsApi, formatPhoneNumberForDisplay, cleanPhoneNumberForApi } from '@/lib/api';
 import { 
   User,
   MapPin,
@@ -50,6 +50,10 @@ export default function ClientForm({
   foundClient,
   onResetBothForms
 }: ClientFormProps) {
+  
+  // Debug: Log current formData
+  console.log('ClientForm: Current formData:', formData);
+  console.log('ClientForm: Current foundClient:', foundClient);
   const [searching, setSearching] = useState(false);
   const [phoneError, setPhoneError] = useState<string>('');
 
@@ -68,9 +72,9 @@ export default function ClientForm({
   };
 
   // Simple Cambodian phone number validation based on digit count
-  const validateCambodianPhone = (phone: string): { isValid: boolean; message: string } => {
+  const validateCambodianPhone = (phone: string): { isValid: boolean; message: string; } => {
     // Remove all non-numeric characters for validation
-    const cleanPhone = phone.replace(/\D/g, '');
+    const cleanPhone = cleanPhoneNumberForApi(phone);
     
     // Check if empty
     if (!cleanPhone) {
@@ -88,22 +92,7 @@ export default function ClientForm({
     return { isValid: true, message: '' };
   };
 
-  // Format phone number for display (add spaces for readability)
-  const formatPhoneNumber = (phone: string): string => {
-    const cleanPhone = phone.replace(/\D/g, '');
-    
-    if (cleanPhone.length >= 3) {
-      if (cleanPhone.length <= 6) {
-        return cleanPhone.replace(/(\d{3})(\d+)/, '$1 $2');
-      } else if (cleanPhone.length <= 9) {
-        return cleanPhone.replace(/(\d{3})(\d{3})(\d+)/, '$1 $2 $3');
-      } else {
-        return cleanPhone.replace(/(\d{3})(\d{3})(\d{3})(\d+)/, '$1 $2 $3 $4');
-      }
-    }
-    
-    return cleanPhone;
-  };
+  // Use the centralized formatPhoneNumberForDisplay function
 
   const resetForm = () => {
     console.log('🔄 Resetting both forms');
@@ -125,7 +114,14 @@ export default function ClientForm({
   };
 
   const handleSearchClient = async () => {
-    console.log('🔍 Starting search with phone:', formData.phone_number);
+    console.log('Starting search with phone:', formData.phone_number);
+    
+    // Test phone number formatting with the current phone number
+    const testPhone = '011733744';
+    console.log(' Testing phone formatting:');
+    console.log(' Original:', testPhone);
+    console.log(' Formatted:', formatPhoneNumberForDisplay(testPhone));
+    console.log(' Cleaned:', cleanPhoneNumberForApi(testPhone));
     
     if (!formData.phone_number?.trim()) {
       onNotification('error', getMessage('error', 'phoneRequiredForSearch'));
@@ -145,17 +141,20 @@ export default function ClientForm({
 
     try {
       // Send only digits to API
-      const cleanPhone = formData.phone_number.replace(/\D/g, '');
+      const cleanPhone = cleanPhoneNumberForApi(formData.phone_number);
       const response = await clientsApi.getByPhone(cleanPhone);
-      console.log('🔍 Search response:', response);
-      console.log('🔍 Search response.data:', response.data);
-      console.log('🔍 Search response.message:', response.message);
+      console.log('Search response:', response);
+      console.log('Search response.message:', response.message);
       
-      console.log('🔍 Full API response structure:', JSON.stringify(response, null, 2));
+      console.log('Full API response structure:', JSON.stringify(response, null, 2));
       
-      if (response.code === 200 && response.result && response.result.length > 0) {
-        const apiClient = response.result[0];
+      if (response.code === 200 && response.result) {
+        // Handle both array and single object responses
+        const apiClient = Array.isArray(response.result) ? response.result[0] : response.result;
         console.log('Client found:', apiClient);
+        console.log('Client phone number:', apiClient.phone_number);
+        console.log('Client name:', apiClient.cus_name);
+        console.log('Client address:', apiClient.address);
         
         // Transform API client to component client format
         const client: Client = {
@@ -168,23 +167,29 @@ export default function ClientForm({
         onClientFound(client);
         
         // Auto-fill the form with found client data
+        const formattedPhone = formatPhoneNumberForDisplay(client.phone_number);
+        console.log('Original phone from API:', client.phone_number);
+        console.log('Formatted phone for display:', formattedPhone);
+        
         const newFormData = {
           cus_name: client.cus_name || '',
           address: client.address || '',
-          phone_number: formatPhoneNumber(client.phone_number) || formData.phone_number
+          phone_number: formattedPhone || formData.phone_number
         };
         console.log('Setting form data to:', newFormData);
+        console.log('Calling onFormDataChange with:', newFormData);
         onFormDataChange(newFormData);
+        console.log('onFormDataChange called successfully');
         
         onNotification('success', getClientFoundMessage(client.cus_name));
       } else {
         console.log('No client found - API response:', response);
-        console.log('🔍 Response code:', response.code);
-        console.log('🔍 Response result:', response.result);
-        console.log('🔍 Response message:', response.message);
-        console.log('🔍 Using Khmer translation for no client found');
+        console.log('Response code:', response.code);
+        console.log('Response result:', response.result);
+        console.log('Response message:', response.message);
+        console.log('Using Khmer translation for no client found');
         const khmerMessage = getMessage('error', 'clientNotFound');
-        console.log('🔍 Khmer message:', khmerMessage);
+        console.log('Khmer message:', khmerMessage);
         onNotification('error', khmerMessage);
         onClientFound(null);
         
@@ -205,20 +210,20 @@ export default function ClientForm({
       const apiError = error as { response?: { status?: number; data?: { message?: string } } };
       
       // Debug: Log the actual API error message
-      console.log('🔍 API Error Response:', apiError.response?.data);
-      console.log('🔍 API Error Message:', apiError.response?.data?.message);
+      console.log('API Error Response:', apiError.response?.data);
+      console.log('API Error Message:', apiError.response?.data?.message);
       
       if (apiError.response?.status === 404) {
-        console.log('🔍 Using Khmer translation for 404 error');
+        console.log('Using Khmer translation for 404 error');
         onNotification('error', getMessage('error', 'clientNotFound'));
       } else if (apiError.response?.status === 400) {
-        console.log('🔍 Using Khmer translation for 400 error');
+        console.log('Using Khmer translation for 400 error');
         onNotification('error', getMessage('error', 'invalidPhone'));
       } else if (apiError.response?.status === 500) {
-        console.log('🔍 Using Khmer translation for 500 error');
+        console.log('Using Khmer translation for 500 error');
         onNotification('error', getMessage('error', 'serverError'));
       } else {
-        console.log('🔍 Using Khmer translation for other error');
+        console.log('Using Khmer translation for other error');
         // Always use our Khmer translation instead of API English messages
         onNotification('error', getMessage('error', 'clientSearchError'));
       }
@@ -275,7 +280,7 @@ export default function ClientForm({
       const clientData = {
         cus_name: formData.cus_name.trim(),
         address: formData.address?.trim() || '',
-        phone_number: formData.phone_number.replace(/\D/g, '') // Send only digits
+        phone_number: cleanPhoneNumberForApi(formData.phone_number) // Send only digits
       };
 
       console.log('Sending client data to API:', clientData);
@@ -306,7 +311,7 @@ export default function ClientForm({
     const value = e.target.value;
     
     // Allow only numbers, spaces, and common phone separators, but remove them for storage
-    const digitsOnly = value.replace(/\D/g, '');
+    const digitsOnly = cleanPhoneNumberForApi(value);
     
     // Limit to 10 digits maximum
     if (digitsOnly.length > 10) {
@@ -314,7 +319,7 @@ export default function ClientForm({
     }
 
     // Format for display
-    const formattedPhone = formatPhoneNumber(digitsOnly);
+    const formattedPhone = formatPhoneNumberForDisplay(digitsOnly);
     
     console.log('Phone number changed to:', formattedPhone);
     

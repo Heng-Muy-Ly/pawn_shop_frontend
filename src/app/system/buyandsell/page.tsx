@@ -87,7 +87,7 @@ export default function BuyAndSellPage() {
   const orderFormResetRef = useRef<(() => void) | null>(null);
 
   const showNotification = (type: 'success' | 'error', message: string) => {
-    console.log('🔍 showNotification called with:', { type, message });
+    console.log('showNotification called with:', { type, message });
     setNotification({ type, message });
   };
 
@@ -211,7 +211,10 @@ export default function BuyAndSellPage() {
   };
 
   const handleFormDataChange = (newFormData: FormData) => {
+    console.log('Parent: handleFormDataChange called with:', newFormData);
+    console.log('Parent: Previous formData was:', formData);
     setFormData(newFormData);
+    console.log('Parent: formData updated successfully');
   };
 
   // Function to reset both forms when called from ClientForm

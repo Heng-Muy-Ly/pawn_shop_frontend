@@ -53,8 +53,8 @@ export default function LastOrders({
 
   // Debug: Log the first order to see its structure
   if (orders.length > 0) {
-    console.log('🔍 LastOrders - First order structure:', orders[0]);
-    console.log('🔍 LastOrders - First order items:', orders[0].items);
+    console.log('LastOrders - First order structure:', orders[0]);
+    console.log('LastOrders - First order items:', orders[0].items);
   }
 
   // Simplified print handler using the utility function

@@ -2,6 +2,29 @@ import axios from 'axios';
 import { config } from './config';
 import { authApi } from './auth-api';
 
+// Utility function to clean phone numbers for API calls
+// Removes all non-digit characters (spaces, dashes, etc.) for backend compatibility
+export const cleanPhoneNumberForApi = (phoneNumber: string): string => {
+  return phoneNumber.replace(/\D/g, '');
+};
+
+// Utility function to format phone numbers for display (adds spaces for readability)
+export const formatPhoneNumberForDisplay = (phoneNumber: string): string => {
+  const cleanPhone = phoneNumber.replace(/\D/g, '');
+  
+  if (cleanPhone.length >= 3) {
+    if (cleanPhone.length <= 6) {
+      return cleanPhone.replace(/(\d{3})(\d+)/, '$1 $2');
+    } else if (cleanPhone.length <= 9) {
+      return cleanPhone.replace(/(\d{3})(\d{3})(\d+)/, '$1 $2 $3');
+    } else {
+      return cleanPhone.replace(/(\d{3})(\d{3})(\d{3})(\d+)/, '$1 $2 $3 $4');
+    }
+  }
+  
+  return cleanPhone;
+};
+
 // Create axios instance
 const apiClient = axios.create({
   baseURL: config.apiUrl,
@@ -228,17 +251,22 @@ export const clientsApi = {
   },
   
   create: async (client: ClientCreateData): Promise<ApiResponse<Client>> => {
-    const response = await apiClient.post('client', client);
+    // Clean phone number in request body
+    const cleanClientData = {
+      ...client,
+      phone_number: cleanPhoneNumberForApi(client.phone_number)
+    };
+    const response = await apiClient.post('client', cleanClientData);
     return response.data;
   },
 
   getByPhone: async (phoneNumber: string): Promise<ApiResponse<Client>> => {
-    // URL encode the phone number to handle spaces properly
-    const encodedPhone = encodeURIComponent(phoneNumber);
-    console.log('🔍 getByPhone called with:', phoneNumber);
-    console.log('🔍 URL encoded phone:', encodedPhone);
-    console.log('🔍 Full URL:', `client/${encodedPhone}`);
-    const response = await apiClient.get(`client/${encodedPhone}`);
+    // Clean phone number for API call (remove spaces and non-digits)
+    const cleanPhone = cleanPhoneNumberForApi(phoneNumber);
+    console.log('getByPhone called with:', phoneNumber);
+    console.log('Clean phone for API:', cleanPhone);
+    console.log('Full URL:', `client/${cleanPhone}`);
+    const response = await apiClient.get(`client/${cleanPhone}`);
     return response.data;
   },
 
@@ -250,19 +278,29 @@ export const clientsApi = {
 
   // DELETE Client by Phone Number
   deleteByPhone: async (phoneNumber: string): Promise<ApiResponse> => {
-    const response = await apiClient.delete(`client/phone/${phoneNumber}`);
+    const cleanPhone = cleanPhoneNumberForApi(phoneNumber);
+    const response = await apiClient.delete(`client/phone/${cleanPhone}`);
     return response.data;
   },
 
   // PATCH Client by ID
   update: async (clientId: number, clientData: Partial<ClientCreateData>): Promise<ApiResponse<Client>> => {
-    const response = await apiClient.patch(`client/${clientId}`, clientData);
+    // Clean phone number if present in update data
+    const cleanClientData = clientData.phone_number 
+      ? { ...clientData, phone_number: cleanPhoneNumberForApi(clientData.phone_number) }
+      : clientData;
+    const response = await apiClient.patch(`client/${clientId}`, cleanClientData);
     return response.data;
   },
 
   // PATCH Client by Phone Number
   updateByPhone: async (phoneNumber: string, clientData: Partial<ClientCreateData>): Promise<ApiResponse<Client>> => {
-    const response = await apiClient.patch(`client/phone/${phoneNumber}`, clientData);
+    const cleanPhone = cleanPhoneNumberForApi(phoneNumber);
+    // Clean phone number if present in update data
+    const cleanClientData = clientData.phone_number 
+      ? { ...clientData, phone_number: cleanPhoneNumberForApi(clientData.phone_number) }
+      : clientData;
+    const response = await apiClient.patch(`client/phone/${cleanPhone}`, cleanClientData);
     return response.data;
   }
 };
@@ -275,7 +313,12 @@ export const ordersApi = {
   },
 
   create: async (order: OrderCreateData): Promise<ApiResponse<Order>> => {
-    const response = await apiClient.post('order', order);
+    // Clean phone number in request body
+    const cleanOrderData = {
+      ...order,
+      phone_number: cleanPhoneNumberForApi(order.phone_number)
+    };
+    const response = await apiClient.post('order', cleanOrderData);
     return response.data;
   },
   
@@ -315,7 +358,7 @@ export const ordersApi = {
     const searchParams = new URLSearchParams();
     if (params.cus_id) searchParams.append('cus_id', params.cus_id.toString());
     if (params.cus_name) searchParams.append('cus_name', params.cus_name);
-    if (params.phone_number) searchParams.append('phone_number', params.phone_number);
+    if (params.phone_number) searchParams.append('phone_number', cleanPhoneNumberForApi(params.phone_number));
 
     const response = await apiClient.get(`order/search?${searchParams.toString()}`);
     return response.data;
@@ -327,17 +370,17 @@ export const ordersApi = {
   },
 
   getLastOrders: async (): Promise<ApiResponse<Order[]>> => {
-    console.log('🔍 Calling getLastOrders endpoint: order (to get all orders)');
+    console.log('Calling getLastOrders endpoint: order (to get all orders)');
     try {
       const response = await apiClient.get('order');
-      console.log('🔍 getLastOrders response:', response);
-      console.log('🔍 getLastOrders response.data:', response.data);
+      console.log('getLastOrders response:', response);
+      console.log('getLastOrders response.data:', response.data);
       
       // If we get orders, return only the last 3
       if (response.data.code === 200 && response.data.result && Array.isArray(response.data.result)) {
         const allOrders = response.data.result;
         const lastOrders = allOrders.slice(-3); // Get last 3 orders
-        console.log('🔍 Returning last 3 orders:', lastOrders);
+        console.log('Returning last 3 orders:', lastOrders);
         
         return {
           ...response.data,
@@ -347,7 +390,7 @@ export const ordersApi = {
       
       return response.data;
     } catch (error) {
-      console.error('🔍 Error in getLastOrders:', error);
+      console.error('Error in getLastOrders:', error);
       throw error;
     }
   },
@@ -365,7 +408,11 @@ export const ordersApi = {
 
   // PATCH Order by ID
   update: async (orderId: number, orderData: Partial<OrderCreateData>): Promise<ApiResponse<Order>> => {
-    const response = await apiClient.patch(`order/${orderId}`, orderData);
+    // Clean phone number if present in update data
+    const cleanOrderData = orderData.phone_number 
+      ? { ...orderData, phone_number: cleanPhoneNumberForApi(orderData.phone_number) }
+      : orderData;
+    const response = await apiClient.patch(`order/${orderId}`, cleanOrderData);
     return response.data;
   },
 };
@@ -378,7 +425,12 @@ export const pawnsApi = {
   },
   
   create: async (pawn: PawnCreateData): Promise<ApiResponse<Pawn>> => {
-    const response = await apiClient.post('pawn', pawn);
+    // Clean phone number in request body
+    const cleanPawnData = {
+      ...pawn,
+      phone_number: cleanPhoneNumberForApi(pawn.phone_number)
+    };
+    const response = await apiClient.post('pawn', cleanPawnData);
     return response.data;
   },
 
@@ -418,7 +470,7 @@ export const pawnsApi = {
     const searchParams = new URLSearchParams();
     if (params.cus_id) searchParams.append('cus_id', params.cus_id.toString());
     if (params.cus_name) searchParams.append('cus_name', params.cus_name);
-    if (params.phone_number) searchParams.append('phone_number', params.phone_number);
+    if (params.phone_number) searchParams.append('phone_number', cleanPhoneNumberForApi(params.phone_number));
 
     const response = await apiClient.get(`pawn/search?${searchParams.toString()}`);
     return response.data;
@@ -447,36 +499,40 @@ export const pawnsApi = {
 
   // PATCH Pawn by ID
   update: async (pawnId: number, pawnData: Partial<PawnCreateData>): Promise<ApiResponse<Pawn>> => {
-    const response = await apiClient.patch(`pawn/${pawnId}`, pawnData);
+    // Clean phone number if present in update data
+    const cleanPawnData = pawnData.phone_number 
+      ? { ...pawnData, phone_number: cleanPhoneNumberForApi(pawnData.phone_number) }
+      : pawnData;
+    const response = await apiClient.patch(`pawn/${pawnId}`, cleanPawnData);
     return response.data;
   },
 };
 
 // Test function to debug API issues
 export const testApiConnection = async () => {
-  console.log('🧪 Testing API connection...');
+  console.log(' Testing API connection...');
   
   try {
     // Test basic connectivity
     const response = await apiClient.get('order');
-    console.log('✅ API connection successful');
-    console.log('📊 Response:', response.data);
+    console.log(' API connection successful');
+    console.log(' Response:', response.data);
     
     if (response.data.code === 200) {
-      console.log('✅ API returned success code');
+      console.log(' API returned success code');
       if (response.data.result) {
-        console.log(`📦 Found ${Array.isArray(response.data.result) ? response.data.result.length : 'non-array'} result(s)`);
+        console.log(` Found ${Array.isArray(response.data.result) ? response.data.result.length : 'non-array'} result(s)`);
       } else {
-        console.log('❌ No result in response');
+        console.log(' No result in response');
       }
     } else {
-      console.log('❌ API returned error code:', response.data.code);
-      console.log('📝 Error message:', response.data.message);
+      console.log(' API returned error code:', response.data.code);
+      console.log('Error message:', response.data.message);
     }
     
     return response.data;
   } catch (error) {
-    console.error('❌ API connection failed:', error);
+    console.error(' API connection failed:', error);
     throw error;
   }
 };

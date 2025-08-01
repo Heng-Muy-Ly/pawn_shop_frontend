@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { clientsApi } from '@/lib/api';
+import { clientsApi, formatPhoneNumberForDisplay, cleanPhoneNumberForApi } from '@/lib/api';
 import { 
   User,
   MapPin,
@@ -68,7 +68,7 @@ export default function ClientForm({
   // Simple Cambodian phone number validation based on digit count
   const validateCambodianPhone = (phone: string): { isValid: boolean; message: string } => {
     // Remove all non-numeric characters for validation
-    const cleanPhone = phone.replace(/\D/g, '');
+    const cleanPhone = cleanPhoneNumberForApi(phone);
     
     // Check if empty
     if (!cleanPhone) {
@@ -86,22 +86,7 @@ export default function ClientForm({
     return { isValid: true, message: '' };
   };
 
-  // Format phone number for display (add spaces for readability)
-  const formatPhoneNumber = (phone: string): string => {
-    const cleanPhone = phone.replace(/\D/g, '');
-    
-    if (cleanPhone.length >= 3) {
-      if (cleanPhone.length <= 6) {
-        return cleanPhone.replace(/(\d{3})(\d+)/, '$1 $2');
-      } else if (cleanPhone.length <= 9) {
-        return cleanPhone.replace(/(\d{3})(\d{3})(\d+)/, '$1 $2 $3');
-      } else {
-        return cleanPhone.replace(/(\d{3})(\d{3})(\d{3})(\d+)/, '$1 $2 $3 $4');
-      }
-    }
-    
-    return cleanPhone;
-  };
+  // Use the centralized formatPhoneNumberForDisplay function
 
   const resetForm = () => {
     console.log('🔄 Resetting both forms');
@@ -141,18 +126,23 @@ export default function ClientForm({
 
     try {
       // Send only digits to API
-      const cleanPhone = formData.phone_number.replace(/\D/g, '');
+      const cleanPhone = cleanPhoneNumberForApi(formData.phone_number);
       const response = await clientsApi.getByPhone(cleanPhone);
       
-      if (response.code === 200 && response.result && response.result.length > 0) {
-        const client = response.result[0];
+      if (response.code === 200 && response.result) {
+        // Handle both array and single object responses
+        const client = Array.isArray(response.result) ? response.result[0] : response.result;
         onClientFound(client as any);
         
         // Auto-fill the form with found client data
+        const formattedPhone = formatPhoneNumberForDisplay(client.phone_number);
+        console.log('Original phone from API:', client.phone_number);
+        console.log('Formatted phone for display:', formattedPhone);
+        
         onFormDataChange({
           cus_name: client.cus_name || '',
           address: client.address || '',
-          phone_number: formatPhoneNumber(client.phone_number) || formData.phone_number
+          phone_number: formattedPhone || formData.phone_number
         });
         
         onNotification('success', getClientFoundMessage(client.cus_name));
@@ -227,7 +217,7 @@ export default function ClientForm({
       const clientData = {
         cus_name: formData.cus_name.trim(),
         address: formData.address?.trim() || '',
-        phone_number: formData.phone_number.replace(/\D/g, '') // Send only digits
+        phone_number: cleanPhoneNumberForApi(formData.phone_number) // Send only digits
       };
 
       const response = await clientsApi.create(clientData);
@@ -253,7 +243,7 @@ export default function ClientForm({
     const value = e.target.value;
     
     // Allow only numbers, spaces, and common phone separators, but remove them for storage
-    const digitsOnly = value.replace(/\D/g, '');
+    const digitsOnly = cleanPhoneNumberForApi(value);
     
     // Limit to 10 digits maximum
     if (digitsOnly.length > 10) {
@@ -261,7 +251,7 @@ export default function ClientForm({
     }
 
     // Format for display
-    const formattedPhone = formatPhoneNumber(digitsOnly);
+    const formattedPhone = formatPhoneNumberForDisplay(digitsOnly);
     
     const newFormData = {
       ...formData, 
@@ -439,7 +429,7 @@ export default function ClientForm({
             )}
             {/* {formData.phone_number && !phoneError && formData.phone_number.replace(/\D/g, '').length >= 7 && (
               <p className="mt-1 text-xs text-green-600 flex items-center">
-                <span className="mr-1">✅</span>
+                <span className="mr-1"></span>
                 លេខទូរសព្ទត្រឹមត្រូវ
               </p>
             )} */}

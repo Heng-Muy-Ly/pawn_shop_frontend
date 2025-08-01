@@ -188,7 +188,7 @@ export const transformPawnPrintData = (backendData: BackendPawnData): PawnPrintD
       }
     };
   } catch (error) {
-    console.error('❌ Error transforming pawn print data:', error);
+    console.error(' Error transforming pawn print data:', error);
     throw new Error('Failed to transform pawn print data');
   }
 };
@@ -388,7 +388,7 @@ export const generatePawnPrintHTML = (pawnData: PawnDataForPrint, pawnDetails: P
       </html>
     `;
   } catch (error) {
-    console.error('❌ Error generating pawn print HTML:', error);
+    console.error(' Error generating pawn print HTML:', error);
     throw new Error('Failed to generate pawn print HTML');
   }
 };
@@ -404,7 +404,7 @@ export const printPawn = async (
     const response = await pawnsApi.printPawn(pawnId);
     
     if (response.code === 200 && response.result) {
-      console.log('✅ Pawn print data received:', response.result);
+      console.log(' Pawn print data received:', response.result);
       
       // The API returns data directly in result object
       const apiData = response.result as PawnApiResult;
@@ -442,11 +442,11 @@ export const printPawn = async (
         onNotification('error', 'មិនអាចបើកទំព័របោះពុម្ពបានទេ - browser បានរារាំង popup');
       }
     } else {
-      console.log('❌ Pawn print failed:', response);
+      console.log(' Pawn print failed:', response);
       onNotification('error', response.message || 'មានបញ្ហាក្នុងការរៀបចំទិន្នន័យសម្រាប់បោះពុម្ព');
     }
   } catch (error: unknown) {
-    console.error('❌ Error printing pawn:', error);
+    console.error(' Error printing pawn:', error);
     
     // Better error handling for print functionality
     const errorMessage = error instanceof Error ? error.message : '';

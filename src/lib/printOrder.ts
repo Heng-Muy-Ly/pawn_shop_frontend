@@ -113,7 +113,7 @@ export const transformPrintData = (backendData: BackendOrderData): PrintData => 
       }
     };
   } catch (error) {
-    console.error('❌ Error transforming print data:', error);
+    console.error(' Error transforming print data:', error);
     throw new Error('Failed to transform print data');
   }
 };
@@ -123,7 +123,7 @@ export const generatePrintHTML = (printData: PrintData, orderId: number): string
   try {
     // Validate print data structure
     if (!printData || !printData.header || !printData.customer || !printData.items || !printData.totals) {
-      console.error('❌ Invalid print data structure:', printData);
+      console.error(' Invalid print data structure:', printData);
       throw new Error('Print data is missing required fields');
     }
 
@@ -265,7 +265,7 @@ export const generatePrintHTML = (printData: PrintData, orderId: number): string
       </html>
     `;
   } catch (error) {
-    console.error('❌ Error generating print HTML:', error);
+    console.error(' Error generating print HTML:', error);
     throw new Error('Failed to generate print HTML');
   }
 };
@@ -280,7 +280,7 @@ export const printOrder = async (
     const response = await ordersApi.printOrder(orderId);
     
     if (response.code === 200 && response.result) {
-      console.log('✅ Print data received:', response.result);
+      console.log(' Print data received:', response.result);
       
       // Transform the backend data to match our print format
       const transformedData = transformPrintData(response.result);
@@ -299,11 +299,11 @@ export const printOrder = async (
         onNotification('error', 'មិនអាចបើកទំព័របោះពុម្ពបានទេ - browser បានរារាំង popup');
       }
     } else {
-      console.log('❌ Print failed:', response);
+      console.log(' Print failed:', response);
       onNotification('error', response.message || 'មានបញ្ហាក្នុងការរៀបចំទិន្នន័យសម្រាប់បោះពុម្ព');
     }
   } catch (error: unknown) {
-    console.error('❌ Error printing order:', error);
+    console.error(' Error printing order:', error);
     
     // Better error handling for print functionality
     const errorMessage = error instanceof Error ? error.message : '';

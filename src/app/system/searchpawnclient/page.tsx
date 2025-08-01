@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { pawnsApi, formatPhoneNumberForDisplay } from '@/lib/api';
+import { pawnsApi, formatPhoneNumberForDisplay, clientsApi } from '@/lib/api';
 import { colors } from '@/lib/colors';
 import { getMessage } from '@/lib/messages';
 import { printPawn } from '@/lib/printPawn';
@@ -28,7 +28,8 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Trash2,
-  Edit
+  Edit,
+  AlertTriangle
 } from 'lucide-react';
 
 interface Client {
@@ -50,6 +51,7 @@ interface Pawn {
   pawn_id: number;
   pawn_deposit: number;
   pawn_date: string;
+  pawn_expire_date: string;
   products: Product[];
 }
 
@@ -67,6 +69,16 @@ interface ClientDetail {
 interface Notification {
   type: 'success' | 'error';
   message: string;
+}
+
+interface DeleteModal {
+  isOpen: boolean;
+  client: Client | null;
+}
+
+interface PawnDeleteModal {
+  isOpen: boolean;
+  pawnId: number | null;
 }
 
 interface SearchFilters {
@@ -104,6 +116,10 @@ export default function PawnPage() {
   const [showClientDetail, setShowClientDetail] = useState(false);
   const [isSearchMode, setIsSearchMode] = useState(false);
   const [printLoading, setPrintLoading] = useState<{ [key: number]: boolean }>({});
+  const [deleteModal, setDeleteModal] = useState<DeleteModal>({ isOpen: false, client: null });
+  const [pawnDeleteModal, setPawnDeleteModal] = useState<PawnDeleteModal>({ isOpen: false, pawnId: null });
+  const [deleting, setDeleting] = useState(false);
+  const [deletingPawn, setDeletingPawn] = useState(false);
   const isMountedRef = useRef(true);
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
 
@@ -471,14 +487,21 @@ export default function PawnPage() {
     }
   };
 
-  // DELETE Pawn function
-  const handleDeletePawn = async (pawnId: number) => {
-    if (!confirm('តើអ្នកប្រាកដជាចង់លុបការបញ្ចាំនេះមែនទេ?')) {
-      return;
-    }
+  // Pawn deletion modal functions
+  const openPawnDeleteModal = (pawnId: number) => {
+    setPawnDeleteModal({ isOpen: true, pawnId });
+  };
 
+  const closePawnDeleteModal = () => {
+    setPawnDeleteModal({ isOpen: false, pawnId: null });
+  };
+
+  const confirmDeletePawn = async () => {
+    if (!pawnDeleteModal.pawnId) return;
+
+    setDeletingPawn(true);
     try {
-      const response = await pawnsApi.delete(pawnId);
+      const response = await pawnsApi.delete(pawnDeleteModal.pawnId);
       if (response.code === 200) {
         showNotification('success', getMessage('success', 'pawnDeleted'));
         // Refresh the current data
@@ -487,12 +510,46 @@ export default function PawnPage() {
         } else {
           loadClients();
         }
+        closePawnDeleteModal();
       } else {
         showNotification('error', response.message || getMessage('error', 'pawnDeleteError'));
       }
     } catch (error) {
       console.error('Error deleting pawn:', error);
       showNotification('error', getMessage('error', 'pawnDeleteError'));
+    } finally {
+      setDeletingPawn(false);
+    }
+  };
+
+  // Client deletion functions
+  const openDeleteModal = (client: Client) => {
+    setDeleteModal({ isOpen: true, client });
+  };
+
+  const closeDeleteModal = () => {
+    setDeleteModal({ isOpen: false, client: null });
+  };
+
+  const confirmDeleteClient = async () => {
+    if (!deleteModal.client) return;
+
+    setDeleting(true);
+    try {
+      const response = await clientsApi.delete(deleteModal.client.cus_id);
+      if (response.code === 200) {
+        showNotification('success', 'អតិថិជនត្រូវបានលុបដោយជោគជ័យ');
+        // Reload clients list
+        loadClients(currentPage);
+        closeDeleteModal();
+      } else {
+        showNotification('error', 'មិនអាចលុបអតិថិជនបានទេ');
+      }
+    } catch (error: unknown) {
+      console.error('Error deleting client:', error);
+      showNotification('error', 'មានបញ្ហាក្នុងការលុបអតិថិជន');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -1116,6 +1173,22 @@ export default function PawnPage() {
                         </div>
                       </div>
                     </div>
+                    
+                    {/* Client Delete Button */}
+                    <div className="flex-shrink-0">
+                      <button
+                        onClick={() => openDeleteModal({
+                          cus_id: clientDetail.client_info.cus_id,
+                          cus_name: clientDetail.client_info.cus_name,
+                          phone_number: clientDetail.client_info.phone_number,
+                          address: clientDetail.client_info.address
+                        })}
+                        className="inline-flex items-center px-6 py-3 bg-white text-red-600 text-sm font-semibold border-2 border-red-200 hover:bg-red-50 hover:border-red-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200 shadow-sm"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        លុបអតិថិជន
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1143,9 +1216,15 @@ export default function PawnPage() {
                           </div>
                           <div>
                             <h4 className="text-lg font-semibold text-gray-900">កម្ម័ង #{pawn.pawn_id}</h4>
-                            <div className="flex items-center gap-1 text-sm text-gray-500 mt-0.5">
-                              <Calendar className="h-4 w-4" />
-                              <span>{new Date(pawn.pawn_date).toLocaleDateString('km-KH')}</span>
+                            <div className="flex items-center gap-4 text-sm text-gray-500 mt-0.5">
+                              <div className="flex items-center gap-1">
+                                <Calendar className="h-4 w-4" />
+                                <span>កាលបរិច្ឆេទ: {new Date(pawn.pawn_date).toLocaleDateString('km-KH')}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Calendar className="h-4 w-4" />
+                                <span>ផុតកំណត់: {new Date(pawn.pawn_expire_date).toLocaleDateString('km-KH')}</span>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -1175,7 +1254,7 @@ export default function PawnPage() {
 
                             {/* Delete Button */}
                             <button
-                              onClick={() => handleDeletePawn(pawn.pawn_id)}
+                              onClick={() => openPawnDeleteModal(pawn.pawn_id)}
                               className="inline-flex items-center px-3 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200 shadow-sm"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -1228,16 +1307,8 @@ export default function PawnPage() {
                                     <div className="text-center text-sm text-gray-600">
                                       {product.pawn_weight}
                                     </div>
-                                    <div className="text-center">
-                                      <span 
-                  className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
-                  style={{ 
-                    backgroundColor: colors.primary[100], 
-                    color: colors.primary[800] 
-                  }}
-                >
-                                        {product.pawn_amount}
-                                      </span>
+                                    <div className="text-center text-sm text-gray-600">
+                                      {product.pawn_amount}
                                     </div>
                                     <div className="text-center font-medium text-gray-900">
                                       ${product.pawn_unit_price}
@@ -1258,6 +1329,162 @@ export default function PawnPage() {
               </div>
             </>
           ) : null}
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div 
+            className="absolute inset-0 bg-opacity-20 backdrop-blur-sm"
+            onClick={closeDeleteModal}
+          />
+          
+          <div 
+            className="relative bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4"
+            style={{ backgroundColor: 'white' }}
+          >
+            <div className="flex items-center space-x-3 mb-4">
+              <div 
+                className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: colors.error[100] }}
+              >
+                <AlertTriangle 
+                  className="h-6 w-6" 
+                  style={{ color: colors.error[600] }}
+                />
+              </div>
+              <div>
+                <h3 
+                  className="text-lg font-semibold"
+                  style={{ color: colors.secondary[900] }}
+                >
+                  បញ្ជាក់ការលុប
+                </h3>
+                <p 
+                  className="text-sm"
+                  style={{ color: colors.secondary[600] }}
+                >
+                  សកម្មភាពនេះមិនអាចត្រឡប់វិញបានទេ
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <p 
+                className="text-sm"
+                style={{ color: colors.secondary[700] }}
+              >
+                តើអ្នកពិតជាចង់លុបអតិថិជន{' '}
+                <span className="font-semibold font-khmer">
+                  &quot;{deleteModal.client?.cus_name}&quot;
+                </span>{' '}
+                មែនទេ?
+              </p>
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={closeDeleteModal}
+                disabled={deleting}
+                className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              >
+                បោះបង់
+              </button>
+              <button
+                onClick={confirmDeleteClient}
+                disabled={deleting}
+                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
+                    កំពុងលុប...
+                  </>
+                ) : (
+                  'លុប'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pawn Delete Confirmation Modal */}
+      {pawnDeleteModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div 
+            className="absolute inset-0 bg-opacity-20 backdrop-blur-sm"
+            onClick={closePawnDeleteModal}
+          />
+          
+          <div 
+            className="relative bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4"
+            style={{ backgroundColor: 'white' }}
+          >
+            <div className="flex items-center space-x-3 mb-4">
+              <div 
+                className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: colors.error[100] }}
+              >
+                <AlertTriangle 
+                  className="h-6 w-6" 
+                  style={{ color: colors.error[600] }}
+                />
+              </div>
+              <div>
+                <h3 
+                  className="text-lg font-semibold"
+                  style={{ color: colors.secondary[900] }}
+                >
+                  បញ្ជាក់ការលុប
+                </h3>
+                <p 
+                  className="text-sm"
+                  style={{ color: colors.secondary[600] }}
+                >
+                  សកម្មភាពនេះមិនអាចត្រឡប់វិញបានទេ
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <p 
+                className="text-sm"
+                style={{ color: colors.secondary[700] }}
+              >
+                តើអ្នកពិតជាចង់លុបការបញ្ចាំ{' '}
+                <span className="font-semibold font-khmer">
+                  #{pawnDeleteModal.pawnId}
+                </span>{' '}
+                មែនទេ?
+              </p>
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={closePawnDeleteModal}
+                disabled={deletingPawn}
+                className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              >
+                បោះបង់
+              </button>
+              <button
+                onClick={confirmDeletePawn}
+                disabled={deletingPawn}
+                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              >
+                {deletingPawn ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
+                    កំពុងលុប...
+                  </>
+                ) : (
+                  'លុប'
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -310,7 +310,8 @@ export default function ClientForm({
   const handlePhoneNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     
-    // Allow only numbers, spaces, and common phone separators, but remove them for storage
+    // Allow only numbers, spaces, dashes, dots, and parentheses for input
+    // Remove all non-digit characters for processing
     const digitsOnly = cleanPhoneNumberForApi(value);
     
     // Limit to 10 digits maximum
@@ -318,10 +319,12 @@ export default function ClientForm({
       return;
     }
 
-    // Format for display
+    // Format for display with spaces
     const formattedPhone = formatPhoneNumberForDisplay(digitsOnly);
     
-    console.log('Phone number changed to:', formattedPhone);
+    console.log('📱 Phone input:', value);
+    console.log('📱 Digits only:', digitsOnly);
+    console.log('📱 Formatted for display:', formattedPhone);
     
     const newFormData = {
       ...formData, 

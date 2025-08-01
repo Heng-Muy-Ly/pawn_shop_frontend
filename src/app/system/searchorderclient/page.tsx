@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ordersApi, formatPhoneNumberForDisplay } from '@/lib/api';
+import { ordersApi, formatPhoneNumberForDisplay, clientsApi } from '@/lib/api';
 import { colors } from '@/lib/colors';
 import { getMessage } from '@/lib/messages';
 import { printOrder } from '@/lib/printOrder';
@@ -28,7 +28,8 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Trash2,
-  Edit
+  Edit,
+  AlertTriangle
 } from 'lucide-react';
 
 interface Client {
@@ -70,6 +71,16 @@ interface Notification {
   message: string;
 }
 
+interface DeleteModal {
+  isOpen: boolean;
+  client: Client | null;
+}
+
+interface OrderDeleteModal {
+  isOpen: boolean;
+  orderId: number | null;
+}
+
 interface SearchFilters {
   search_id: string;
   search_name: string;
@@ -105,6 +116,10 @@ export default function OrderPage() {
   const [showClientDetail, setShowClientDetail] = useState(false);
   const [isSearchMode, setIsSearchMode] = useState(false);
   const [printLoading, setPrintLoading] = useState<{ [key: number]: boolean }>({});
+  const [deleteModal, setDeleteModal] = useState<DeleteModal>({ isOpen: false, client: null });
+  const [orderDeleteModal, setOrderDeleteModal] = useState<OrderDeleteModal>({ isOpen: false, orderId: null });
+  const [deleting, setDeleting] = useState(false);
+  const [deletingOrder, setDeletingOrder] = useState(false);
   const isMountedRef = useRef(true);
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
 
@@ -512,14 +527,21 @@ export default function OrderPage() {
     }
   };
 
-  // DELETE Order function
-  const handleDeleteOrder = async (orderId: number) => {
-    if (!confirm('តើអ្នកប្រាកដជាចង់លុបការបញ្ជាទិញនេះមែនទេ?')) {
-      return;
-    }
+  // Order deletion modal functions
+  const openOrderDeleteModal = (orderId: number) => {
+    setOrderDeleteModal({ isOpen: true, orderId });
+  };
 
+  const closeOrderDeleteModal = () => {
+    setOrderDeleteModal({ isOpen: false, orderId: null });
+  };
+
+  const confirmDeleteOrder = async () => {
+    if (!orderDeleteModal.orderId) return;
+
+    setDeletingOrder(true);
     try {
-      const response = await ordersApi.delete(orderId);
+      const response = await ordersApi.delete(orderDeleteModal.orderId);
       if (response.code === 200) {
         showNotification('success', getMessage('success', 'orderDeleted'));
         // Refresh the current data
@@ -528,12 +550,46 @@ export default function OrderPage() {
         } else {
           loadClients();
         }
+        closeOrderDeleteModal();
       } else {
         showNotification('error', response.message || getMessage('error', 'orderDeleteError'));
       }
     } catch (error) {
       console.error('Error deleting order:', error);
       showNotification('error', getMessage('error', 'orderDeleteError'));
+    } finally {
+      setDeletingOrder(false);
+    }
+  };
+
+  // Client deletion functions
+  const openDeleteModal = (client: Client) => {
+    setDeleteModal({ isOpen: true, client });
+  };
+
+  const closeDeleteModal = () => {
+    setDeleteModal({ isOpen: false, client: null });
+  };
+
+  const confirmDeleteClient = async () => {
+    if (!deleteModal.client) return;
+
+    setDeleting(true);
+    try {
+      const response = await clientsApi.delete(deleteModal.client.cus_id);
+      if (response.code === 200) {
+        showNotification('success', 'អតិថិជនត្រូវបានលុបដោយជោគជ័យ');
+        // Reload clients list
+        loadClients(currentPage);
+        closeDeleteModal();
+      } else {
+        showNotification('error', 'មិនអាចលុបអតិថិជនបានទេ');
+      }
+    } catch (error: unknown) {
+      console.error('Error deleting client:', error);
+      showNotification('error', 'មានបញ្ហាក្នុងការលុបអតិថិជន');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -1075,15 +1131,15 @@ export default function OrderPage() {
                               onClick={() => handleViewMore(client)}
                               disabled={detailLoading || !client.cus_id || client.cus_id === 'N/A'}
                               className="w-20 ml-4 inline-flex items-center justify-center px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm"
-                style={{
-                  '&:focus': { ringColor: colors.primary[500] }
-                }}
-                onFocus={(e) => {
-                  e.target.style.boxShadow = `0 0 0 2px ${colors.primary[200]}`;
-                }}
-                onBlur={(e) => {
-                  e.target.style.boxShadow = 'none';
-                }}
+                              style={{
+                                '&:focus': { ringColor: colors.primary[500] }
+                              }}
+                              onFocus={(e) => {
+                                e.target.style.boxShadow = `0 0 0 2px ${colors.primary[200]}`;
+                              }}
+                              onBlur={(e) => {
+                                e.target.style.boxShadow = 'none';
+                              }}
                             >
                               {detailLoading ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -1172,6 +1228,22 @@ export default function OrderPage() {
                         </div>
                       </div>
                     </div>
+                    
+                    {/* Client Delete Button */}
+                    <div className="flex-shrink-0">
+                      <button
+                        onClick={() => openDeleteModal({
+                          cus_id: clientDetail.client_info.cus_id,
+                          cus_name: clientDetail.client_info.cus_name,
+                          phone_number: clientDetail.client_info.phone_number,
+                          address: clientDetail.client_info.address
+                        })}
+                        className="inline-flex items-center px-6 py-3 bg-white text-red-600 text-sm font-semibold border-2 border-red-200 hover:bg-red-50 hover:border-red-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200 shadow-sm"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        លុបអតិថិជន
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1240,7 +1312,7 @@ export default function OrderPage() {
 
                             {/* Delete Button */}
                             <button
-                              onClick={() => handleDeleteOrder(order.order_id)}
+                              onClick={() => openOrderDeleteModal(order.order_id)}
                               className="inline-flex items-center px-3 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200 shadow-sm"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -1293,16 +1365,8 @@ export default function OrderPage() {
                                     <div className="text-center text-sm text-gray-600">
                                       {product.order_weight}
                                     </div>
-                                    <div className="text-center">
-                                      <span 
-                  className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
-                  style={{ 
-                    backgroundColor: colors.primary[100], 
-                    color: colors.primary[800] 
-                  }}
-                >
-                                        {product.order_amount}
-                                      </span>
+                                    <div className="text-center text-sm text-gray-600">
+                                      {product.order_amount}
                                     </div>
                                     <div className="text-center font-medium text-gray-900">
                                       ${product.product_sell_price}
@@ -1323,6 +1387,162 @@ export default function OrderPage() {
               </div>
             </>
           ) : null}
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div 
+            className="absolute inset-0 bg-opacity-20 backdrop-blur-sm"
+            onClick={closeDeleteModal}
+          />
+          
+          <div 
+            className="relative bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4"
+            style={{ backgroundColor: 'white' }}
+          >
+            <div className="flex items-center space-x-3 mb-4">
+              <div 
+                className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: colors.error[100] }}
+              >
+                <AlertTriangle 
+                  className="h-6 w-6" 
+                  style={{ color: colors.error[600] }}
+                />
+              </div>
+              <div>
+                <h3 
+                  className="text-lg font-semibold"
+                  style={{ color: colors.secondary[900] }}
+                >
+                  បញ្ជាក់ការលុប
+                </h3>
+                <p 
+                  className="text-sm"
+                  style={{ color: colors.secondary[600] }}
+                >
+                  សកម្មភាពនេះមិនអាចត្រឡប់វិញបានទេ
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <p 
+                className="text-sm"
+                style={{ color: colors.secondary[700] }}
+              >
+                តើអ្នកពិតជាចង់លុបអតិថិជន{' '}
+                <span className="font-semibold font-khmer">
+                  &quot;{deleteModal.client?.cus_name}&quot;
+                </span>{' '}
+                មែនទេ?
+              </p>
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={closeDeleteModal}
+                disabled={deleting}
+                className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              >
+                បោះបង់
+              </button>
+              <button
+                onClick={confirmDeleteClient}
+                disabled={deleting}
+                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
+                    កំពុងលុប...
+                  </>
+                ) : (
+                  'លុប'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Order Delete Confirmation Modal */}
+      {orderDeleteModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div 
+            className="absolute inset-0 bg-opacity-20 backdrop-blur-sm"
+            onClick={closeOrderDeleteModal}
+          />
+          
+          <div 
+            className="relative bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4"
+            style={{ backgroundColor: 'white' }}
+          >
+            <div className="flex items-center space-x-3 mb-4">
+              <div 
+                className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: colors.error[100] }}
+              >
+                <AlertTriangle 
+                  className="h-6 w-6" 
+                  style={{ color: colors.error[600] }}
+                />
+              </div>
+              <div>
+                <h3 
+                  className="text-lg font-semibold"
+                  style={{ color: colors.secondary[900] }}
+                >
+                  បញ្ជាក់ការលុប
+                </h3>
+                <p 
+                  className="text-sm"
+                  style={{ color: colors.secondary[600] }}
+                >
+                  សកម្មភាពនេះមិនអាចត្រឡប់វិញបានទេ
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <p 
+                className="text-sm"
+                style={{ color: colors.secondary[700] }}
+              >
+                តើអ្នកពិតជាចង់លុបការបញ្ជាទិញ{' '}
+                <span className="font-semibold font-khmer">
+                  #{orderDeleteModal.orderId}
+                </span>{' '}
+                មែនទេ?
+              </p>
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={closeOrderDeleteModal}
+                disabled={deletingOrder}
+                className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              >
+                បោះបង់
+              </button>
+              <button
+                onClick={confirmDeleteOrder}
+                disabled={deletingOrder}
+                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              >
+                {deletingOrder ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
+                    កំពុងលុប...
+                  </>
+                ) : (
+                  'លុប'
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

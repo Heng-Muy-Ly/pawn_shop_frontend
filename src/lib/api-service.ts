@@ -1,5 +1,6 @@
 import { productsApi, clientsApi, ordersApi, pawnsApi } from './api';
 import { authApi } from './auth-api';
+import { config } from './config';
 
 // Comprehensive API Service
 export class ApiService {
@@ -58,7 +59,9 @@ export class ApiService {
     // Check if API is available
     async checkApiHealth(): Promise<boolean> {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/health`);
+        // Extract base URL without /api/v1 for health check
+        const baseUrl = config.apiUrl.replace('/api/v1', '');
+        const response = await fetch(`${baseUrl}/health`);
         return response.ok;
       } catch {
         return false;
@@ -67,7 +70,19 @@ export class ApiService {
 
     // Get API base URL
     getBaseUrl(): string {
-      return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      return config.apiUrl;
+    },
+
+    // Get app configuration
+    getConfig() {
+      return {
+        apiUrl: config.apiUrl,
+        appName: config.appName,
+        appVersion: config.appVersion,
+        timeout: config.timeout,
+        isDevelopment: config.isDevelopment,
+        isProduction: config.isProduction,
+      };
     },
 
     // Format error message
@@ -80,6 +95,13 @@ export class ApiService {
       }
       return 'An unexpected error occurred';
     },
+
+    // Debug log (only in development)
+    debugLog(message: string, data?: any): void {
+      if (config.enableDebug && config.isDevelopment) {
+        console.log(`[API Service] ${message}`, data || '');
+      }
+    },
   };
 }
 
@@ -87,4 +109,4 @@ export class ApiService {
 export { productsApi, clientsApi, ordersApi, pawnsApi, authApi };
 
 // Export the main service
-export default ApiService; 
+export default ApiService;

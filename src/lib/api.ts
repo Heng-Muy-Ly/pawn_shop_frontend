@@ -233,7 +233,36 @@ export const clientsApi = {
   },
 
   getByPhone: async (phoneNumber: string): Promise<ApiResponse<Client>> => {
-    const response = await apiClient.get(`client/${phoneNumber}`);
+    // URL encode the phone number to handle spaces properly
+    const encodedPhone = encodeURIComponent(phoneNumber);
+    console.log('🔍 getByPhone called with:', phoneNumber);
+    console.log('🔍 URL encoded phone:', encodedPhone);
+    console.log('🔍 Full URL:', `client/${encodedPhone}`);
+    const response = await apiClient.get(`client/${encodedPhone}`);
+    return response.data;
+  },
+
+  // DELETE Client by ID
+  delete: async (clientId: number): Promise<ApiResponse> => {
+    const response = await apiClient.delete(`client/${clientId}`);
+    return response.data;
+  },
+
+  // DELETE Client by Phone Number
+  deleteByPhone: async (phoneNumber: string): Promise<ApiResponse> => {
+    const response = await apiClient.delete(`client/phone/${phoneNumber}`);
+    return response.data;
+  },
+
+  // PATCH Client by ID
+  update: async (clientId: number, clientData: Partial<ClientCreateData>): Promise<ApiResponse<Client>> => {
+    const response = await apiClient.patch(`client/${clientId}`, clientData);
+    return response.data;
+  },
+
+  // PATCH Client by Phone Number
+  updateByPhone: async (phoneNumber: string, clientData: Partial<ClientCreateData>): Promise<ApiResponse<Client>> => {
+    const response = await apiClient.patch(`client/phone/${phoneNumber}`, clientData);
     return response.data;
   }
 };
@@ -327,6 +356,18 @@ export const ordersApi = {
     const response = await apiClient.get(`order/print?order_id=${orderId}`);
     return response.data;
   },
+
+  // DELETE Order by ID
+  delete: async (orderId: number): Promise<ApiResponse> => {
+    const response = await apiClient.delete(`order/${orderId}`);
+    return response.data;
+  },
+
+  // PATCH Order by ID
+  update: async (orderId: number, orderData: Partial<OrderCreateData>): Promise<ApiResponse<Order>> => {
+    const response = await apiClient.patch(`order/${orderId}`, orderData);
+    return response.data;
+  },
 };
 
 // Pawns API - Based on your Swagger "/api/v1/pawn"
@@ -395,6 +436,18 @@ export const pawnsApi = {
 
   printPawn: async (pawnId: number): Promise<ApiResponse> => {
     const response = await apiClient.get(`pawn/print?pawn_id=${pawnId}`);
+    return response.data;
+  },
+
+  // DELETE Pawn by ID
+  delete: async (pawnId: number): Promise<ApiResponse> => {
+    const response = await apiClient.delete(`pawn/${pawnId}`);
+    return response.data;
+  },
+
+  // PATCH Pawn by ID
+  update: async (pawnId: number, pawnData: Partial<PawnCreateData>): Promise<ApiResponse<Pawn>> => {
+    const response = await apiClient.patch(`pawn/${pawnId}`, pawnData);
     return response.data;
   },
 };

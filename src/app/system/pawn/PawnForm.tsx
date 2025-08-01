@@ -15,7 +15,7 @@ import {
 import { colors } from '@/lib/colors';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import ProductDropdown from '@/components/ui/ProductDropdown';
+// ProductDropdown import removed - using simple text input instead
 
 interface Client {
   cus_id: number;
@@ -51,7 +51,6 @@ interface FormData {
 }
 
 interface PawnFormProps {
-  products: Product[];
   onNotification: (type: 'success' | 'error', message: string) => void;
   onPawnCreated: () => void;
   formData: FormData;
@@ -60,7 +59,6 @@ interface PawnFormProps {
 }
 
 export default function PawnForm({
-  products = [], // Default to empty array to prevent errors
   onNotification,
   onPawnCreated,
   formData,
@@ -80,9 +78,6 @@ export default function PawnForm({
     pawn_deposit: 0,
     pawn_product_detail: []
   });
-
-  // Ensure products is always an array
-  const safeProducts = Array.isArray(products) ? products : [];
 
   // Format display value for number inputs (show empty string instead of 0)
   const formatDisplayValue = (value: number): string => {
@@ -147,12 +142,7 @@ export default function PawnForm({
     fetchNextPawnId();
   }, []);
 
-  // Debug log to check products
-  useEffect(() => {
-    console.log('Products received in PawnForm:', products);
-    console.log('Products is array:', Array.isArray(products));
-    console.log('Products length:', products?.length);
-  }, [products]);
+  // Debug log removed - no longer using products dropdown
 
   // Add new product row to pawn
   const addProductToPawn = () => {
@@ -189,20 +179,7 @@ export default function PawnForm({
     }));
   };
 
-  // Handle product selection from dropdown
-  const handleProductSelect = (index: number, productId: number, productName: string) => {
-    updatePawnProduct(index, 'prod_id', productId);
-    updatePawnProduct(index, 'prod_name', productName);
-  };
-
-  // Handle custom product name input
-  const handleCustomProductChange = (index: number, value: string) => {
-    updatePawnProduct(index, 'prod_name', value);
-    // Reset product ID when manually typing custom name
-    if (pawnData.pawn_product_detail[index]?.prod_id !== 0) {
-      updatePawnProduct(index, 'prod_id', 0);
-    }
-  };
+  // Product name input is now handled directly in the input onChange
 
   // Calculate total pawn value
   const calculateTotalValue = (): number => {
@@ -318,7 +295,7 @@ export default function PawnForm({
                 ) : loadingNextId ? (
                   'កំពុងផ្ទុក...'
                 ) : (
-                  `${nextPawnId || 'N/A'}`
+                  `${nextPawnId || 1}`
                 )}
               </div>
             </div>
@@ -444,18 +421,15 @@ export default function PawnForm({
                         </span>
                       </div>
 
-                      {/* Product Dropdown - Now with safe products array */}
+                      {/* Product Name Input */}
                       <div className="col-span-3">
-                        <ProductDropdown
-                          products={safeProducts} // Use the safe products array
+                        <input
+                          type="text"
                           value={product.prod_name}
-                          onProductSelect={(productId, productName) => 
-                            handleProductSelect(index, productId, productName)
-                          }
-                          onCustomValueChange={(value) => 
-                            handleCustomProductChange(index, value)
-                          }
+                          onChange={(e) => updatePawnProduct(index, 'prod_name', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           placeholder="បញ្ចូលឈ្មោះផលិតផល"
+                          required
                         />
                       </div>
 

@@ -26,7 +26,9 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
+  Trash2,
+  Edit
 } from 'lucide-react';
 
 interface Client {
@@ -196,6 +198,54 @@ export default function PawnPage() {
     }
   }, [notification]);
 
+  // Phone number formatting utility for search and display
+  const formatPhoneNumber = (phone: string): string => {
+    if (!phone) return '';
+    
+    // Remove all non-digit characters
+    const digits = phone.replace(/\D/g, '');
+    
+    // Format as XXX XXX XXX (3-3-3 format) - exactly like backend
+    if (digits.length === 9) {
+      return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+    }
+    
+    // Return original if not 9 digits
+    return phone;
+  };
+
+  // URL encode phone number for API calls
+  const encodePhoneForAPI = (phone: string): string => {
+    if (!phone) return '';
+    
+    // Format the phone number first
+    const formattedPhone = formatPhoneNumber(phone);
+    
+    // URL encode the formatted phone (spaces become %20)
+    return encodeURIComponent(formattedPhone);
+  };
+
+  // Phone number display formatting utility
+  const formatPhoneDisplay = (phone: string): string => {
+    if (!phone) return '-';
+    
+    // If phone already has spaces, return as-is (backend format)
+    if (phone.includes(' ')) {
+      return phone;
+    }
+    
+    // Remove all non-digit characters and format
+    const digits = phone.replace(/\D/g, '');
+    
+    // Format as XXX XXX XXX (3-3-3 format) - exactly like backend
+    if (digits.length === 9) {
+      return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+    }
+    
+    // Return original if not 9 digits
+    return phone;
+  };
+
   // Debounced search function with pagination
   const debouncedSearch = useCallback((filters: SearchFilters, page: number = 1) => {
     if (searchTimeoutRef.current) {
@@ -237,7 +287,13 @@ export default function PawnPage() {
         }
         
         if (filters.phone_number.trim()) {
-          searchParams.search_phone = filters.phone_number.trim();
+          // Format phone number to match backend format
+          const formattedPhone = formatPhoneNumber(filters.phone_number.trim());
+          const encodedPhone = encodePhoneForAPI(filters.phone_number.trim());
+          console.log('🔍 Original phone:', filters.phone_number.trim());
+          console.log('🔍 Formatted phone:', formattedPhone);
+          console.log('🔍 URL encoded phone:', encodedPhone);
+          searchParams.search_phone = encodedPhone;
         }
 
         if (filters.address.trim()) {
@@ -246,7 +302,40 @@ export default function PawnPage() {
 
         console.log('Searching with params:', searchParams);
 
-        // Use the same getAllClientPawns method for search
+        // If only phone number is provided, use direct client lookup
+        if (filters.phone_number.trim() && 
+            !filters.cus_id.trim() && 
+            !filters.cus_name.trim() && 
+            !filters.address.trim()) {
+          
+          console.log('🔍 Phone-only search detected, using direct client lookup');
+          const formattedPhone = formatPhoneNumber(filters.phone_number.trim());
+          console.log('🔍 Passing formatted phone to API:', formattedPhone);
+          const response = await clientsApi.getByPhone(formattedPhone);
+          
+          if (response.code === 200 && response.result) {
+            // Convert single client to array format for consistency
+            const clientArray = [response.result];
+            setClients(clientArray);
+            setPagination({
+              current_page: 1,
+              page_size: 1,
+              total_items: 1,
+              total_pages: 1,
+              has_next: false,
+              has_previous: false
+            });
+            setCurrentPage(1);
+            return;
+          } else {
+            setClients([]);
+            setPagination(null);
+            showNotification('error', getMessage('error', 'noResultsFound'));
+            return;
+          }
+        }
+
+        // Use the same getAllClientPawns method for other searches
         const response = await pawnsApi.getAllClientPawns(searchParams);
         
         if (!isMountedRef.current) return;
@@ -393,6 +482,52 @@ export default function PawnPage() {
       if (isMountedRef.current) {
         setPrintLoading(prev => ({ ...prev, [pawnId]: false }));
       }
+    }
+  };
+
+  // DELETE Pawn function
+  const handleDeletePawn = async (pawnId: number) => {
+    if (!confirm('តើអ្នកប្រាកដជាចង់លុបការបញ្ចាំនេះមែនទេ?')) {
+      return;
+    }
+
+    try {
+      const response = await pawnsApi.delete(pawnId);
+      if (response.code === 200) {
+        showNotification('success', getMessage('success', 'pawnDeleted'));
+        // Refresh the current data
+        if (clientDetail) {
+          loadClientDetail(clientDetail.client_info.cus_id);
+        } else {
+          loadClients();
+        }
+      } else {
+        showNotification('error', response.message || getMessage('error', 'pawnDeleteError'));
+      }
+    } catch (error) {
+      console.error('Error deleting pawn:', error);
+      showNotification('error', getMessage('error', 'pawnDeleteError'));
+    }
+  };
+
+  // PATCH Pawn function
+  const handleUpdatePawn = async (pawnId: number, pawnData: any) => {
+    try {
+      const response = await pawnsApi.update(pawnId, pawnData);
+      if (response.code === 200) {
+        showNotification('success', getMessage('success', 'pawnUpdated'));
+        // Refresh the current data
+        if (clientDetail) {
+          loadClientDetail(clientDetail.client_info.cus_id);
+        } else {
+          loadClients();
+        }
+      } else {
+        showNotification('error', response.message || getMessage('error', 'pawnUpdateError'));
+      }
+    } catch (error) {
+      console.error('Error updating pawn:', error);
+      showNotification('error', getMessage('error', 'pawnUpdateError'));
     }
   };
   
@@ -879,12 +1014,12 @@ export default function PawnPage() {
                               {/* Phone Number */}
                               <div className="min-w-0">
                                 {client.phone_number && client.phone_number !== 'N/A' ? (
-                                  <a href={`tel:${client.phone_number}`} className={`text-sm truncate block ${
+                                  <a href={`tel:${client.phone_number.replace(/\s/g, '')}`} className={`text-sm truncate block ${
                                     searchFilters.phone_number && client.phone_number && client.phone_number.includes(searchFilters.phone_number)
                                       ? 'text-gray-900 px-1 rounded'
                                       : 'text-gray-600 hover:text-blue-600'
                                   }`}>
-                                    {client.phone_number}
+                                    {formatPhoneDisplay(client.phone_number)}
                                   </a>
                                 ) : (
                                   <span className="text-sm text-gray-400">-</span>
@@ -1035,18 +1170,32 @@ export default function PawnPage() {
                             <p className="text-xl font-bold" style={{ color: colors.primary[600] }}>${pawn.pawn_deposit}</p>
                           </div>
 
-                          <button
-                            onClick={() => handlePrintPawn(pawn.pawn_id)}
-                            disabled={printLoading[pawn.pawn_id]}
-                            className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm"
-                          >
-                            {printLoading[pawn.pawn_id] ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Printer className="h-4 w-4" />
-                            )}
-                            <span className="ml-2">បោះពុម្ព</span>
-                          </button>
+                          <div className="flex items-center gap-2">
+                            {/* Print Button */}
+                            <button
+                              onClick={() => handlePrintPawn(pawn.pawn_id)}
+                              disabled={printLoading[pawn.pawn_id]}
+                              className="inline-flex items-center px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm"
+                            >
+                              {printLoading[pawn.pawn_id] ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Printer className="h-4 w-4" />
+                              )}
+                              <span className="ml-2">បោះពុម្ព</span>
+                            </button>
+
+
+
+                            {/* Delete Button */}
+                            <button
+                              onClick={() => handleDeletePawn(pawn.pawn_id)}
+                              className="inline-flex items-center px-3 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200 shadow-sm"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="ml-2">លុប</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
 

@@ -179,8 +179,8 @@ export default function ClientForm({
       } else if (apiError.response?.status === 500) {
         onNotification('error', getMessage('error', 'serverError'));
       } else {
-        const errorMessage = apiError.response?.data?.message || getMessage('error', 'clientSearchError');
-        onNotification('error', errorMessage);
+        // Always use our Khmer translation instead of API English messages
+        onNotification('error', getMessage('error', 'clientSearchError'));
       }
       
       onClientFound(null);
@@ -237,13 +237,14 @@ export default function ClientForm({
         resetForm();
         onClientCreated();
       } else {
-        onNotification('error', response.message || getMessage('error', 'clientSaveError'));
+        // Always use our Khmer translation instead of API English messages
+        onNotification('error', getMessage('error', 'clientSaveError'));
       }
     } catch (error: unknown) {
       console.error('Error saving client:', error);
       const apiError = error as { response?: { data?: { message?: string } } };
-      const errorMessage = apiError.response?.data?.message || getMessage('error', 'clientSaveError');
-      onNotification('error', errorMessage);
+      // Always use our Khmer translation instead of API English messages
+      onNotification('error', getMessage('error', 'clientSaveError'));
     }
   };
 

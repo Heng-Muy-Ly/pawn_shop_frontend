@@ -148,6 +148,10 @@ export default function ClientForm({
       const cleanPhone = formData.phone_number.replace(/\D/g, '');
       const response = await clientsApi.getByPhone(cleanPhone);
       console.log('🔍 Search response:', response);
+      console.log('🔍 Search response.data:', response.data);
+      console.log('🔍 Search response.message:', response.message);
+      
+      console.log('🔍 Full API response structure:', JSON.stringify(response, null, 2));
       
       if (response.code === 200 && response.result && response.result.length > 0) {
         const apiClient = response.result[0];
@@ -174,8 +178,14 @@ export default function ClientForm({
         
         onNotification('success', getClientFoundMessage(client.cus_name));
       } else {
-        console.log('No client found');
-        onNotification('error', getMessage('error', 'clientNotFound'));
+        console.log('No client found - API response:', response);
+        console.log('🔍 Response code:', response.code);
+        console.log('🔍 Response result:', response.result);
+        console.log('🔍 Response message:', response.message);
+        console.log('🔍 Using Khmer translation for no client found');
+        const khmerMessage = getMessage('error', 'clientNotFound');
+        console.log('🔍 Khmer message:', khmerMessage);
+        onNotification('error', khmerMessage);
         onClientFound(null);
         
         // DON'T clear other fields - keep existing form data intact
@@ -194,15 +204,23 @@ export default function ClientForm({
       // Handle different error cases
       const apiError = error as { response?: { status?: number; data?: { message?: string } } };
       
+      // Debug: Log the actual API error message
+      console.log('🔍 API Error Response:', apiError.response?.data);
+      console.log('🔍 API Error Message:', apiError.response?.data?.message);
+      
       if (apiError.response?.status === 404) {
+        console.log('🔍 Using Khmer translation for 404 error');
         onNotification('error', getMessage('error', 'clientNotFound'));
       } else if (apiError.response?.status === 400) {
+        console.log('🔍 Using Khmer translation for 400 error');
         onNotification('error', getMessage('error', 'invalidPhone'));
       } else if (apiError.response?.status === 500) {
+        console.log('🔍 Using Khmer translation for 500 error');
         onNotification('error', getMessage('error', 'serverError'));
       } else {
-        const errorMessage = apiError.response?.data?.message || getMessage('error', 'clientSearchError');
-        onNotification('error', errorMessage);
+        console.log('🔍 Using Khmer translation for other error');
+        // Always use our Khmer translation instead of API English messages
+        onNotification('error', getMessage('error', 'clientSearchError'));
       }
       
       onClientFound(null);
@@ -271,14 +289,15 @@ export default function ClientForm({
         onClientCreated();
       } else {
         console.log('API returned error:', response);
-        onNotification('error', response.message || getMessage('error', 'clientSaveError'));
+        // Always use our Khmer translation instead of API English messages
+        onNotification('error', getMessage('error', 'clientSaveError'));
       }
     } catch (error: unknown) {
       console.error('Error saving client:', error);
       
       const apiError = error as { response?: { data?: { message?: string } } };
-              const errorMessage = apiError.response?.data?.message || getMessage('error', 'clientSaveError');
-        onNotification('error', errorMessage);
+      // Always use our Khmer translation instead of API English messages
+      onNotification('error', getMessage('error', 'clientSaveError'));
     }
   };
 

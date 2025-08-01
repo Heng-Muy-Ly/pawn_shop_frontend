@@ -64,11 +64,15 @@ export const messages = {
     // Order related
     orderLoadError: 'មិនអាចទាញយកការបញ្ជាទិញចុងក្រោយបានទេ',
     orderSaveError: 'មានបញ្ហាក្នុងការបង្កើតការបញ្ជាទិញ',
+    orderUpdateError: 'មានបញ្ហាក្នុងការធ្វើបច្ចុប្បន្នភាពការបញ្ជាទិញ',
+    orderDeleteError: 'មានបញ្ហាក្នុងការលុបការបញ្ជាទិញ',
     orderNotFound: 'មិនរកឃើញការបញ្ជាទិញនេះទេ',
     
     // Pawn related
     pawnLoadError: 'មិនអាចទាញយកបញ្ជីការបញ្ចាំបានទេ',
     pawnSaveError: 'មានបញ្ហាក្នុងការបង្កើតការបញ្ចាំ',
+    pawnUpdateError: 'មានបញ្ហាក្នុងការធ្វើបច្ចុប្បន្នភាពការបញ្ចាំ',
+    pawnDeleteError: 'មានបញ្ហាក្នុងការលុបការបញ្ចាំ',
     pawnNotFound: 'មិនរកឃើញការបញ្ចាំនេះទេ',
     
     // Validation errors

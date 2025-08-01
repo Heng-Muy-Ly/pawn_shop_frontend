@@ -26,7 +26,9 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
+  Trash2,
+  Edit
 } from 'lucide-react';
 
 interface Client {
@@ -132,9 +134,14 @@ export default function OrderPage() {
       });
       
       console.log('Full API Response:', response);
+      console.log('🔍 Response code:', response.code);
+      console.log('🔍 Response result:', response.result);
+      console.log('🔍 Response result type:', typeof response.result);
+      console.log('🔍 Is result array?', Array.isArray(response.result));
       console.log('Pagination from response:', response.pagination);
       
       if (response.code === 200 && response.result && isMountedRef.current) {
+        console.log('🔍 Setting clients with:', response.result);
         setClients(response.result);
         
         // Set pagination data from API response
@@ -199,7 +206,63 @@ export default function OrderPage() {
     }
   }, [notification]);
 
+  // Debug effect to log clients state changes
+  useEffect(() => {
+    console.log('🔍 Clients state changed:', clients);
+    console.log('🔍 Clients length:', clients.length);
+    console.log('🔍 Loading state:', loading);
+    console.log('🔍 Search mode:', isSearchMode);
+  }, [clients, loading, isSearchMode]);
+
   // Debounced search function with pagination
+  // Phone number formatting utility for search and display
+  const formatPhoneNumber = (phone: string): string => {
+    if (!phone) return '';
+    
+    // Remove all non-digit characters
+    const digits = phone.replace(/\D/g, '');
+    
+    // Format as XXX XXX XXX (3-3-3 format) - exactly like backend
+    if (digits.length === 9) {
+      return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+    }
+    
+    // Return original if not 9 digits
+    return phone;
+  };
+
+  // URL encode phone number for API calls
+  const encodePhoneForAPI = (phone: string): string => {
+    if (!phone) return '';
+    
+    // Format the phone number first
+    const formattedPhone = formatPhoneNumber(phone);
+    
+    // URL encode the formatted phone (spaces become %20)
+    return encodeURIComponent(formattedPhone);
+  };
+
+  // Phone number display formatting utility
+  const formatPhoneDisplay = (phone: string): string => {
+    if (!phone) return '-';
+    
+    // If phone already has spaces, return as-is (backend format)
+    if (phone.includes(' ')) {
+      return phone;
+    }
+    
+    // Remove all non-digit characters and format
+    const digits = phone.replace(/\D/g, '');
+    
+    // Format as XXX XXX XXX (3-3-3 format) - exactly like backend
+    if (digits.length === 9) {
+      return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+    }
+    
+    // Return original if not 9 digits
+    return phone;
+  };
+
   const debouncedSearch = useCallback((filters: SearchFilters, page: number = 1) => {
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
@@ -240,7 +303,13 @@ export default function OrderPage() {
         }
         
         if (filters.search_phone.trim()) {
-          searchParams.search_phone = filters.search_phone.trim();
+          // Format phone number to match backend format
+          const formattedPhone = formatPhoneNumber(filters.search_phone.trim());
+          const encodedPhone = encodePhoneForAPI(filters.search_phone.trim());
+          console.log('🔍 Original phone:', filters.search_phone.trim());
+          console.log('🔍 Formatted phone:', formattedPhone);
+          console.log('🔍 URL encoded phone:', encodedPhone);
+          searchParams.search_phone = encodedPhone;
         }
 
         if (filters.search_address.trim()) {
@@ -249,15 +318,73 @@ export default function OrderPage() {
 
         console.log('Searching with params:', searchParams);
 
-        // Use the same getAllClientOrders method for search
+        console.log('🔍 Checking phone-only search conditions:');
+        console.log('🔍 search_phone.trim():', filters.search_phone.trim());
+        console.log('🔍 search_id.trim():', filters.search_id.trim());
+        console.log('🔍 search_name.trim():', filters.search_name.trim());
+        console.log('🔍 search_address.trim():', filters.search_address.trim());
+        console.log('🔍 All conditions met:', 
+          filters.search_phone.trim() && 
+          !filters.search_id.trim() && 
+          !filters.search_name.trim() && 
+          !filters.search_address.trim()
+        );
+        
+        // If only phone number is provided, use direct client lookup
+        if (filters.search_phone.trim() && 
+            !filters.search_id.trim() && 
+            !filters.search_name.trim() && 
+            !filters.search_address.trim()) {
+          
+          console.log('🔍 Phone-only search detected, using direct client lookup');
+          console.log('🔍 Search filters:', filters);
+          console.log('🔍 Phone number:', filters.search_phone.trim());
+          console.log('🔍 Phone number length:', filters.search_phone.trim().length);
+          console.log('🔍 Phone number digits only:', filters.search_phone.trim().replace(/\D/g, ''));
+          console.log('🔍 Phone number digits length:', filters.search_phone.trim().replace(/\D/g, '').length);
+          const formattedPhone = formatPhoneNumber(filters.search_phone.trim());
+          console.log('🔍 Passing formatted phone to API:', formattedPhone);
+          console.log('🔍 Formatted phone length:', formattedPhone.length);
+          const response = await clientsApi.getByPhone(formattedPhone);
+          
+          if (response.code === 200 && response.result) {
+            // Convert single client to array format for consistency
+            const clientArray = [response.result];
+            setClients(clientArray);
+            setPagination({
+              current_page: 1,
+              page_size: 1,
+              total_items: 1,
+              total_pages: 1,
+              has_next: false,
+              has_previous: false
+            });
+            setCurrentPage(1);
+            return;
+          } else {
+            setClients([]);
+            setPagination(null);
+            showNotification('error', getMessage('error', 'noResultsFound'));
+            return;
+          }
+        }
+
+        // Use the same getAllClientOrders method for other searches
+        console.log('🔍 Using getAllClientOrders method for search');
         const response = await ordersApi.getAllClientOrders(searchParams);
         
         if (!isMountedRef.current) return;
 
         console.log('Search response:', response);
+        console.log('🔍 Response code:', response.code);
+        console.log('🔍 Response result:', response.result);
+        console.log('🔍 Response result type:', typeof response.result);
+        console.log('🔍 Is result array?', Array.isArray(response.result));
 
         if (response.code === 200) {
           const results = Array.isArray(response.result) ? response.result : [];
+          console.log('🔍 Processed results:', results);
+          console.log('🔍 Results length:', results.length);
           
           setClients(results);
           setPagination(response.pagination);
@@ -396,6 +523,52 @@ export default function OrderPage() {
       if (isMountedRef.current) {
         setPrintLoading(prev => ({ ...prev, [orderId]: false }));
       }
+    }
+  };
+
+  // DELETE Order function
+  const handleDeleteOrder = async (orderId: number) => {
+    if (!confirm('តើអ្នកប្រាកដជាចង់លុបការបញ្ជាទិញនេះមែនទេ?')) {
+      return;
+    }
+
+    try {
+      const response = await ordersApi.delete(orderId);
+      if (response.code === 200) {
+        showNotification('success', getMessage('success', 'orderDeleted'));
+        // Refresh the current data
+        if (clientDetail) {
+          loadClientDetail(clientDetail.client_info.cus_id);
+        } else {
+          loadClients();
+        }
+      } else {
+        showNotification('error', response.message || getMessage('error', 'orderDeleteError'));
+      }
+    } catch (error) {
+      console.error('Error deleting order:', error);
+      showNotification('error', getMessage('error', 'orderDeleteError'));
+    }
+  };
+
+  // PATCH Order function
+  const handleUpdateOrder = async (orderId: number, orderData: any) => {
+    try {
+      const response = await ordersApi.update(orderId, orderData);
+      if (response.code === 200) {
+        showNotification('success', getMessage('success', 'orderUpdated'));
+        // Refresh the current data
+        if (clientDetail) {
+          loadClientDetail(clientDetail.client_info.cus_id);
+        } else {
+          loadClients();
+        }
+      } else {
+        showNotification('error', response.message || getMessage('error', 'orderUpdateError'));
+      }
+    } catch (error) {
+      console.error('Error updating order:', error);
+      showNotification('error', getMessage('error', 'orderUpdateError'));
     }
   };
   
@@ -799,7 +972,7 @@ export default function OrderPage() {
                 <span className="ml-2 text-gray-600">កំពុងទាញយកទិន្នន័យ...</span>
               </div>
             ) : (
-              <div>
+                            <div>
                 {clients.length === 0 ? (
                   <div className="text-center py-12">
                     <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
@@ -888,12 +1061,12 @@ export default function OrderPage() {
                               {/* Phone Number */}
                               <div className="min-w-0">
                                 {client.phone_number && client.phone_number !== 'N/A' ? (
-                                  <a href={`tel:${client.phone_number}`} className={`text-sm truncate block ${
+                                  <a href={`tel:${client.phone_number.replace(/\s/g, '')}`} className={`text-sm truncate block ${
                                     searchFilters.search_phone && client.phone_number && client.phone_number.includes(searchFilters.search_phone)
                                       ? 'text-gray-900 px-1 rounded'
                                       : 'text-gray-600 hover:text-blue-600'
                                   }`}>
-                                    {client.phone_number}
+                                    {formatPhoneDisplay(client.phone_number)}
                                   </a>
                                 ) : (
                                   <span className="text-sm text-gray-400">-</span>
@@ -1053,27 +1226,41 @@ export default function OrderPage() {
                             <p className="text-xl font-bold" style={{ color: colors.primary[600] }}>${order.order_deposit}</p>
                           </div>
 
-                          <button
-                            onClick={() => handlePrintOrder(order.order_id)}
-                            disabled={printLoading[order.order_id]}
-                            className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm"
-                style={{
-                  '&:focus': { ringColor: colors.primary[500] }
-                }}
-                onFocus={(e) => {
-                  e.target.style.boxShadow = `0 0 0 2px ${colors.primary[200]}`;
-                }}
-                onBlur={(e) => {
-                  e.target.style.boxShadow = 'none';
-                }}
-                          >
-                            {printLoading[order.order_id] ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Printer className="h-4 w-4" />
-                            )}
-                            <span className="ml-2">បោះពុម្ព</span>
-                          </button>
+                          <div className="flex items-center gap-2">
+                            {/* Print Button */}
+                            <button
+                              onClick={() => handlePrintOrder(order.order_id)}
+                              disabled={printLoading[order.order_id]}
+                              className="inline-flex items-center px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm"
+                              style={{
+                                '&:focus': { ringColor: colors.primary[500] }
+                              }}
+                              onFocus={(e) => {
+                                e.target.style.boxShadow = `0 0 0 2px ${colors.primary[200]}`;
+                              }}
+                              onBlur={(e) => {
+                                e.target.style.boxShadow = 'none';
+                              }}
+                            >
+                              {printLoading[order.order_id] ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Printer className="h-4 w-4" />
+                              )}
+                              <span className="ml-2">បោះពុម្ព</span>
+                            </button>
+
+
+
+                            {/* Delete Button */}
+                            <button
+                              onClick={() => handleDeleteOrder(order.order_id)}
+                              className="inline-flex items-center px-3 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200 shadow-sm"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="ml-2">លុប</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
 

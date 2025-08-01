@@ -13,7 +13,7 @@ import {
 import { colors } from '@/lib/colors';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import ProductDropdown from '@/components/ui/ProductDropdown';
+// ProductDropdown import removed - using simple text input instead
 import { getMessage } from '@/lib/messages';
 
 interface Client {
@@ -53,7 +53,6 @@ interface FormData {
 }
 
 interface OrderFormProps {
-  products?: Product[];
   onNotification: (type: 'success' | 'error', message: string) => void;
   onOrderCreated: () => void;
   formData: FormData;
@@ -62,7 +61,6 @@ interface OrderFormProps {
 }
 
 export default function OrderForm({
-  products = [],
   onNotification,
   onOrderCreated,
   formData,
@@ -80,9 +78,6 @@ export default function OrderForm({
 
   // Ref to control scroll position
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-
-  // Ensure products is always an array
-  const safeProducts = Array.isArray(products) ? products : [];
 
   // Format display value for number inputs (show empty string instead of 0)
   const formatDisplayValue = (value: number): string => {
@@ -189,20 +184,7 @@ export default function OrderForm({
     }));
   };
 
-  // Handle product selection from dropdown
-  const handleProductSelect = (index: number, productId: number, productName: string) => {
-    updateOrderProduct(index, 'prod_id', productId);
-    updateOrderProduct(index, 'prod_name', productName);
-  };
-
-  // Handle custom product name input
-  const handleCustomProductChange = (index: number, value: string) => {
-    updateOrderProduct(index, 'prod_name', value);
-    // Reset product ID when manually typing custom name
-    if (orderData.order_product_detail[index]?.prod_id !== 0) {
-      updateOrderProduct(index, 'prod_id', 0);
-    }
-  };
+  // Product name input is now handled directly in the input onChange
 
   // Calculate total order amount
   const calculateOrderTotal = (): number => {
@@ -271,7 +253,8 @@ export default function OrderForm({
         resetOrderForm();
         onOrderCreated();
       } else {
-        onNotification('error', response.message || getMessage('error', 'orderSaveError'));
+        // Always use our Khmer translation instead of API English messages
+        onNotification('error', getMessage('error', 'orderSaveError'));
       }
     } catch (error: unknown) {
       console.error('Error creating order:', error);
@@ -313,11 +296,11 @@ export default function OrderForm({
                 }}
               >
                 {foundClient ? (
-                  `រកឃើញ: ${foundClient.cus_id || 'N/A'}`
+                  `រកឃើញ: ${foundClient.cus_id || 1}`
                 ) : loadingNextId ? (
                   'កំពុងផ្ទុក...'
                 ) : (
-                  `${nextOrderId || 'N/A'}`
+                  `${nextOrderId || 1}`
                 )}
               </div>
             </div>
@@ -423,18 +406,15 @@ export default function OrderForm({
                           </span>
                         </div>
 
-                        {/* Product Dropdown */}
+                        {/* Product Name Input */}
                         <div className="col-span-2">
-                          <ProductDropdown
-                            products={safeProducts as any}
+                          <input
+                            type="text"
                             value={product.prod_name}
-                            onProductSelect={(productId, productName) => 
-                              handleProductSelect(index, productId, productName)
-                            }
-                            onCustomValueChange={(value) => 
-                              handleCustomProductChange(index, value)
-                            }
+                            onChange={(e) => updateOrderProduct(index, 'prod_name', e.target.value)}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             placeholder="បញ្ចូលឈ្មោះផលិតផល"
+                            required
                           />
                         </div>
 

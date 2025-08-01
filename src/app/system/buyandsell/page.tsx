@@ -1,10 +1,10 @@
-// buyandsell/page.tsx - Updated with Reset Both Forms Functionality
+// buyandsell/page.tsx - Updated with Reset Both Forms Functionality and Client Search Status
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { clientsApi, productsApi, ordersApi, Client, Product, testApiConnection } from '@/lib/api';
 import { colors } from '@/lib/colors';
-import { getMessage, getDataLoadedMessage } from '@/lib/messages';
+import { getMessage, getDataLoadedMessage, getClientFoundMessage } from '@/lib/messages';
 
 // Import local components from the same folder
 import ClientForm from './ClientForm';
@@ -68,7 +68,6 @@ interface LastOrderData {
 
 export default function BuyAndSellPage() {
   const [clients, setClients] = useState<Client[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
   const [notification, setNotification] = useState<NotificationState | null>(null);
   const [foundClient, setFoundClient] = useState<Client | null>(null);
   const [formData, setFormData] = useState<FormData>({
@@ -76,6 +75,9 @@ export default function BuyAndSellPage() {
     address: '',
     phone_number: ''
   });
+
+  // Add client search status state
+  const [clientSearchStatus, setClientSearchStatus] = useState<'idle' | 'not-found' | 'found'>('idle');
 
   // Last Orders State
   const [lastOrders, setLastOrders] = useState<LastOrderData[]>([]);
@@ -85,20 +87,11 @@ export default function BuyAndSellPage() {
   const orderFormResetRef = useRef<(() => void) | null>(null);
 
   const showNotification = (type: 'success' | 'error', message: string) => {
+    console.log('🔍 showNotification called with:', { type, message });
     setNotification({ type, message });
   };
 
-  const loadProducts = useCallback(async () => {
-    try {
-      const response = await productsApi.getAll();
-      if (response.code === 200 && response.result) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setProducts(response.result as any);
-      }
-    } catch (error: unknown) {
-      console.error('Error loading products:', error);
-    }
-  }, []);
+  // Products loading removed - no longer needed since we removed the dropdown
 
   const loadClients = useCallback(async () => {
     try {
@@ -118,29 +111,30 @@ export default function BuyAndSellPage() {
   const loadLastOrders = useCallback(async () => {
     setLoadingLastOrders(true);
     try {
-      console.log('🔄 Loading last orders...');
+      console.log('Loading last orders...');
       const response = await ordersApi.getLastOrders();
-      console.log('📦 Full response from getLastOrders:', response);
+      console.log('Full response from getLastOrders:', response);
       
       if (response.code === 200 && response.result) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setLastOrders(response.result as any);
-        console.log('✅ Last orders loaded successfully:', response.result);
+        console.log('Last orders loaded successfully:', response.result);
         if (response.result.length > 0) {
-          console.log(`✅ Found ${response.result.length} orders`);
+          console.log(`Found ${response.result.length} orders`);
           // showNotification('success', `ទាញយកការបញ្ជាទិញចុងក្រោយ ${response.result.length} ចំនួនបានជោគជ័យ`);
         } else {
-          console.log('ℹ️ No orders found in result array');
+          console.log('No orders found in result array');
         }
       } else {
-        console.log('❌ No orders found - response details:', {
+        console.log('No orders found - response details:', {
           code: response.code,
           status: response.status,
           message: response.message,
           result: response.result
         });
         setLastOrders([]);
-        showNotification('error', response.message || getMessage('error', 'orderLoadError'));
+        // Always use our Khmer translation instead of API English messages
+        showNotification('error', getMessage('error', 'orderLoadError'));
       }
     } catch (error: unknown) {
       console.error('Error loading last orders:', error);
@@ -168,13 +162,12 @@ export default function BuyAndSellPage() {
     // Test API connection first
     testApiConnection().then(() => {
       loadClients();
-      loadProducts();
       loadLastOrders(); // Load last orders on component mount
     }).catch(error => {
-      console.error('❌ API test failed:', error);
+      console.error('API test failed:', error);
       showNotification('error', getMessage('error', 'networkError'));
     });
-  }, [loadClients, loadProducts, loadLastOrders]);
+  }, [loadClients, loadLastOrders]);
 
   const handleClientCreated = () => {
     loadClients();
@@ -189,14 +182,32 @@ export default function BuyAndSellPage() {
     });
     // Clear found client
     setFoundClient(null);
+    // Reset search status
+    setClientSearchStatus('idle');
     // Reload clients to update the next ID
     loadClients();
     // Reload last orders to show the new order
     loadLastOrders();
   };
 
-  const handleClientFound = (client: Client | null) => {
+  // Updated handleClientFound with proper client search status handling
+  const handleClientFound = (client: Client | null, searchPerformed: boolean = false, searchTerm?: string) => {
     setFoundClient(client);
+    
+    if (searchPerformed) {
+      if (client) {
+        setClientSearchStatus('found');
+        showNotification('success', getClientFoundMessage(client.cus_name));
+      } else {
+        setClientSearchStatus('not-found');
+        const message = searchTerm 
+          ? `${getMessage('error', 'clientNotFound')} "${searchTerm}"` 
+          : getMessage('error', 'clientNotFound');
+        showNotification('error', message);
+      }
+    } else {
+      setClientSearchStatus('idle');
+    }
   };
 
   const handleFormDataChange = (newFormData: FormData) => {
@@ -205,7 +216,7 @@ export default function BuyAndSellPage() {
 
   // Function to reset both forms when called from ClientForm
   const handleResetBothForms = () => {
-    console.log('🔄 Resetting both forms from page component');
+    console.log('Resetting both forms from page component');
     
     // Reset client form data
     setFormData({
@@ -214,6 +225,7 @@ export default function BuyAndSellPage() {
       phone_number: ''
     });
     setFoundClient(null);
+    setClientSearchStatus('idle');
     
     // Reset order form by calling the ref function
     if (orderFormResetRef.current) {
@@ -254,13 +266,13 @@ export default function BuyAndSellPage() {
                 formData={formData}
                 foundClient={foundClient}
                 onResetBothForms={handleResetBothForms}
+                clientSearchStatus={clientSearchStatus} // Pass search status to ClientForm
               />
             </div>
 
             {/* Right Panel - Order Form (2/3 width on xl screens) */}
             <div className="xl:col-span-2 flex flex-col">
               <OrderForm
-                products={products}
                 onNotification={showNotification}
                 onOrderCreated={handleOrderCreated}
                 formData={formData}

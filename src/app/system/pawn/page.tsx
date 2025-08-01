@@ -85,7 +85,6 @@ const calculatePawnStatus = (expireDate: string) => {
 
 export default function PawnPage() {
   const [clients, setClients] = useState<Client[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
   const [lastPawns, setLastPawns] = useState<Pawn[]>([]);
   const [loadingLastPawns, setLoadingLastPawns] = useState(true);
   const [notification, setNotification] = useState<NotificationState | null>(null);
@@ -103,16 +102,7 @@ export default function PawnPage() {
     setNotification({ type, message });
   };
 
-  const loadProducts = useCallback(async () => {
-    try {
-      const response = await productsApi.getAll();
-      if (response.code === 200 && response.result) {
-        setProducts(response.result as any);
-      }
-    } catch (error: unknown) {
-      console.error('Error loading products:', error);
-    }
-  }, []);
+  // Products loading removed - no longer needed since we removed the dropdown
 
   // Real API call for last pawns
   const loadLastPawns = useCallback(async () => {
@@ -195,9 +185,8 @@ export default function PawnPage() {
 
   useEffect(() => {
     loadClients();
-    loadProducts();
     loadLastPawns();
-  }, [loadClients, loadProducts, loadLastPawns]);
+  }, [loadClients, loadLastPawns]);
 
   const handleClientCreated = () => {
     loadClients();
@@ -286,7 +275,6 @@ export default function PawnPage() {
             {/* Right Panel - Pawn Form (2/3 width on xl screens) */}
             <div className="xl:col-span-2 flex flex-col">
               <PawnForm
-                products={products}
                 onNotification={showNotification}
                 onPawnCreated={handlePawnCreated}
                 formData={formData}
